@@ -1,1 +1,53 @@
-// API Constants - Endpoints del backend en .NET Core
+/// Constantes de API - Endpoints del backend en .NET Core
+class ApiConstants {
+
+  static const String baseUrl = 'http://10.0.2.2:5000/api';
+
+  // ==================== AUTH ====================
+  static const String loginEndpoint = '/auth/login';
+  static const String registerEndpoint = '/auth/register';
+  static const String refreshTokenEndpoint = '/auth/refresh-token';
+  static const String logoutEndpoint = '/auth/logout';
+  static const String validateEmailEndpoint = '/auth/validate-email';
+
+  // ==================== HABITS ====================
+  static const String habitsEndpoint = '/habits';
+  static const String createHabitEndpoint = '/habits/create';
+  static const String updateHabitEndpoint = '/habits/update';
+  static const String deleteHabitEndpoint = '/habits/delete';
+  static const String completeHabitEndpoint = '/habits/complete';
+  static const String uploadEvidenceEndpoint = '/habits/upload-evidence';
+  static const String getHabitLogsEndpoint = '/habits/logs';
+
+  // ==================== SYNC ====================
+  static const String syncEndpoint = '/sync';
+  static const String syncQueueEndpoint = '/sync/queue';
+
+  // ==================== FRIENDSHIPS ====================
+  static const String friendshipsEndpoint = '/friendships';
+  static const String getFriendsEndpoint = '/friendships/list';
+  static const String addFriendEndpoint = '/friendships/add';
+  static const String removeFriendEndpoint = '/friendships/remove';
+  static const String acceptFriendshipEndpoint = '/friendships/accept';
+  static const String rejectFriendshipEndpoint = '/friendships/reject';
+
+  // ==================== SOCIAL ====================
+  static const String rankingsEndpoint = '/social/rankings';
+  static const String leaderboardEndpoint = '/social/leaderboard';
+  static const String challengesEndpoint = '/social/challenges';
+  static const String joinChallengeEndpoint = '/social/challenges/join';
+
+  // ==================== PROFILE ====================
+  static const String profileEndpoint = '/profile';
+  static const String updateProfileEndpoint = '/profile/update';
+  static const String uploadProfilePhotoEndpoint = '/profile/upload-photo';
+  static const String getProfilePhotoEndpoint = '/profile/photo';
+
+  // ==================== NOTIFICATIONS ====================
+  static const String notificationsEndpoint = '/notifications';
+  static const String registerDeviceEndpoint = '/notifications/register-device';
+  static const String markNotificationAsReadEndpoint = '/notifications/mark-read';
+
+  // ==================== HEALTH CHECK ====================
+  static const String healthCheckEndpoint = '/health';
+}
