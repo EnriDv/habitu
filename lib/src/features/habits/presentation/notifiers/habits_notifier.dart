@@ -1,12 +1,8 @@
-
-
 import 'package:flutter/foundation.dart';
-// import 'package:get_it/get_it.dart';
 import '../../domain/repositories/habits_repository.dart';
-import '../../domain/entities//habit.dart';
-import '../../domain/entities//habit_log.dart';
+import '../../domain/entities/habit.dart';
+import '../../domain/entities/habit_log.dart';
 
-/// Estados de carga posibles
 enum LoadingState {
   idle,
   loading,
@@ -18,14 +14,17 @@ class HabitsNotifier extends ChangeNotifier {
   final HabitsRepository _repository;
 
   List<Habit> _habits = [];
+  List<HabitLog> _allLogs = [];
   List<HabitLog> _currentHabitLogs = [];
   LoadingState _loadingState = LoadingState.idle;
   String? _errorMessage;
-  String? _selectedHabitId; // Para mostrar logs del hábito actual
+  String? _selectedHabitId;
+
+  // Selected date for "Hoy" calendar view
+  DateTime _selectedDate = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
 
   HabitsNotifier({required HabitsRepository repository})
       : _repository = repository;
-
 
   List<Habit> get habits => _habits;
   List<Habit> get activeHabits => _habits.where((h) => !h.isDeleted).toList();
@@ -35,6 +34,7 @@ class HabitsNotifier extends ChangeNotifier {
 
   List<HabitLog> get currentHabitLogs => _currentHabitLogs;
   String? get selectedHabitId => _selectedHabitId;
+  DateTime get selectedDate => _selectedDate;
 
   /// Retorna el hábito seleccionado actualmente
   Habit? get selectedHabit {
@@ -46,11 +46,50 @@ class HabitsNotifier extends ChangeNotifier {
     }
   }
 
+  /// Filtra hábitos para el día seleccionado
+  List<Habit> get habitsForSelectedDate {
+    // Para simplificar, mostramos todos los hábitos activos.
+    // En el futuro, podríamos filtrar según la frecuencia y el día de la semana.
+    return activeHabits;
+  }
+
+  /// Verifica si un hábito se completó en la fecha seleccionada
+  HabitLog? getCompletionLogForHabit(String habitId, DateTime date) {
+    final targetDate = DateTime(date.year, date.month, date.day);
+    try {
+      return _allLogs.firstWhere((log) {
+        final logDate = DateTime(log.completedAt.year, log.completedAt.month, log.completedAt.day);
+        return log.habitId == habitId && logDate == targetDate;
+      });
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Cambia el día seleccionado en el carrusel
+  void selectDate(DateTime date) {
+    _selectedDate = DateTime(date.year, date.month, date.day);
+    notifyListeners();
+  }
 
   Future<void> loadHabits({required String token}) async {
     _setLoading(true);
     try {
-
+      _habits = await _repository.getHabits(token: token);
+      
+      // Cargar logs de todos los hábitos para calcular rachas e historial
+      final List<HabitLog> loadedLogs = [];
+      for (final habit in _habits) {
+        try {
+          final logs = await _repository.getHabitLogs(habitId: habit.id, token: token, limit: 100);
+          loadedLogs.addAll(logs);
+        } catch (e) {
+          debugPrint('No se pudieron cargar los logs para ${habit.title}: $e');
+        }
+      }
+      _allLogs = loadedLogs;
+      _loadingState = LoadingState.success;
+      notifyListeners();
     } on Exception catch (e) {
       _setError('Failed to load habits: ${e.toString()}');
     }
@@ -60,8 +99,13 @@ class HabitsNotifier extends ChangeNotifier {
     required Habit habit,
     required String token,
   }) async {
+    _setLoading(true);
     try {
-      return false;
+      final created = await _repository.createHabit(habit: habit, token: token);
+      _habits.add(created);
+      _loadingState = LoadingState.success;
+      notifyListeners();
+      return true;
     } on Exception catch (e) {
       _setError('Failed to create habit: ${e.toString()}');
       return false;
@@ -72,8 +116,16 @@ class HabitsNotifier extends ChangeNotifier {
     required Habit habit,
     required String token,
   }) async {
+    _setLoading(true);
     try {
-      return false;
+      final updated = await _repository.updateHabit(habitId: habit.id, habit: habit, token: token);
+      final index = _habits.indexWhere((h) => h.id == habit.id);
+      if (index != -1) {
+        _habits[index] = updated;
+      }
+      _loadingState = LoadingState.success;
+      notifyListeners();
+      return true;
     } on Exception catch (e) {
       _setError('Failed to update habit: ${e.toString()}');
       return false;
@@ -84,8 +136,17 @@ class HabitsNotifier extends ChangeNotifier {
     required String habitId,
     required String token,
   }) async {
+    _setLoading(true);
     try {
-      return false;
+      await _repository.deleteHabit(habitId: habitId, token: token);
+      // Soft-delete local
+      final index = _habits.indexWhere((h) => h.id == habitId);
+      if (index != -1) {
+        _habits[index] = _habits[index].copyWith(isDeleted: true);
+      }
+      _loadingState = LoadingState.success;
+      notifyListeners();
+      return true;
     } on Exception catch (e) {
       _setError('Failed to delete habit: ${e.toString()}');
       return false;
@@ -98,9 +159,43 @@ class HabitsNotifier extends ChangeNotifier {
     String? notes,
     required String token,
   }) async {
+    // Optimista offline-first: agregamos un log temporal en memoria
+    final tempLog = HabitLog(
+      id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
+      habitId: habitId,
+      userId: '',
+      completedAt: _selectedDate == DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day) 
+          ? DateTime.now() 
+          : _selectedDate,
+      confidenceLevel: confidenceLevel,
+      notes: notes,
+      createdAt: DateTime.now(),
+    );
+    
+    _allLogs.add(tempLog);
+    notifyListeners();
+
     try {
-      return false;
+      final savedLog = await _repository.completeHabit(
+        habitId: habitId,
+        confidenceLevel: confidenceLevel,
+        notes: notes,
+        token: token,
+      );
+
+      // Reemplazar el log temporal con el guardado
+      _allLogs.remove(tempLog);
+      _allLogs.add(savedLog);
+      
+      // Si el hábito detallado seleccionado es este, actualizar su vista
+      if (_selectedHabitId == habitId) {
+        await loadHabitLogs(habitId: habitId, token: token);
+      }
+      
+      notifyListeners();
+      return true;
     } on Exception catch (e) {
+      _allLogs.remove(tempLog);
       _setError('Failed to complete habit: ${e.toString()}');
       return false;
     }
@@ -114,9 +209,67 @@ class HabitsNotifier extends ChangeNotifier {
     _setLoading(true);
 
     try {
+      _currentHabitLogs = await _repository.getHabitLogs(habitId: habitId, token: token);
+      _loadingState = LoadingState.success;
+      notifyListeners();
     } on Exception catch (e) {
       _setError('Failed to load habit logs: ${e.toString()}');
     }
+  }
+
+  /// Calcula la racha actual del hábito
+  int getHabitCurrentStreak(String habitId) {
+    final logs = _allLogs.where((l) => l.habitId == habitId).toList();
+    if (logs.isEmpty) return 0;
+    
+    final dates = logs.map((l) => DateTime(l.completedAt.year, l.completedAt.month, l.completedAt.day))
+                      .toSet()
+                      .toList()
+                      ..sort((a, b) => b.compareTo(a));
+                      
+    final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    
+    if (dates.first != today && dates.first != yesterday) {
+      return 0;
+    }
+    
+    int streak = 1;
+    for (int i = 0; i < dates.length - 1; i++) {
+      final diff = dates[i].difference(dates[i+1]).inDays;
+      if (diff == 1) {
+        streak++;
+      } else if (diff > 1) {
+        break;
+      }
+    }
+    return streak;
+  }
+
+  /// Calcula la racha más larga del hábito
+  int getHabitLongestStreak(String habitId) {
+    final logs = _allLogs.where((l) => l.habitId == habitId).toList();
+    if (logs.isEmpty) return 0;
+    
+    final dates = logs.map((l) => DateTime(l.completedAt.year, l.completedAt.month, l.completedAt.day))
+                      .toSet()
+                      .toList()
+                      ..sort((a, b) => b.compareTo(a));
+                      
+    int longest = 1;
+    int current = 1;
+    for (int i = 0; i < dates.length - 1; i++) {
+      final diff = dates[i].difference(dates[i+1]).inDays;
+      if (diff == 1) {
+        current++;
+      } else if (diff > 1) {
+        if (current > longest) {
+          longest = current;
+        }
+        current = 1;
+      }
+    }
+    return current > longest ? current : longest;
   }
 
   void clearSelectedHabit() {
@@ -147,6 +300,7 @@ class HabitsNotifier extends ChangeNotifier {
 
   void reset() {
     _habits = [];
+    _allLogs = [];
     _currentHabitLogs = [];
     _loadingState = LoadingState.idle;
     _errorMessage = null;
