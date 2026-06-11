@@ -5,6 +5,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import '../constants/app_constants.dart';
 
+part 'app_database.g.dart';
+
 class UsersTable extends Table {
   TextColumn get id => text()(); // UUID del usuario
   TextColumn get email => text().unique()(); // Email @ucb.edu.bo
@@ -178,24 +180,22 @@ class RankingsTable extends Table {
 
 // ==================== BASE DE DATOS DRIFT ====================
 
-// @DriftDatabase(tables: [
-//   UsersTable,
-//   HabitsTable,
-//   HabitLogsTable,
-//   SyncQueueTable,
-//   FriendshipsTable,
-//   UserSessionsTable,
-//   NotificationsTable,
-//   RankingsTable,
-// ])
-// class AppDatabase extends _$AppDatabase {
-//   AppDatabase() : super(_openConnection());
-//
-//   @override
-//   int get schemaVersion => 1;
-//
-//   // Migrations aquí si es necesario en versiones futuras
-// }
+@DriftDatabase(tables: [
+  UsersTable,
+  HabitsTable,
+  HabitLogsTable,
+  SyncQueueTable,
+  FriendshipsTable,
+  UserSessionsTable,
+  NotificationsTable,
+  RankingsTable,
+])
+class AppDatabase extends _$AppDatabase {
+  AppDatabase() : super(_openConnection());
+
+  @override
+  int get schemaVersion => 1;
+}
 
 /// Inicialización de la conexión a SQLite nativa
 /// 
