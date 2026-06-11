@@ -4,12 +4,18 @@ import 'src/core/di/injection_container.dart' as di;
 import 'src/core/theme/app_theme.dart';
 import 'src/core/constants/app_constants.dart';
 import 'src/features/habits/presentation/notifiers/habits_notifier.dart';
+import 'src/features/onboarding/presentation/notifiers/onboarding_notifier.dart';
+import 'src/features/onboarding/presentation/screens/onboarding_screen.dart';
+import 'src/features/habits/presentation/screens/habits_today_screen.dart';
+import 'src/features/habits/presentation/screens/progress_screen.dart';
+import 'src/features/social/presentation/screens/comunidad_screen.dart';
+import 'src/features/profile/presentation/screens/profile_screen.dart';
+import 'src/core/services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   await di.init();
-
+  await NotificationService().init();
   runApp(const MyApp());
 }
 
@@ -18,101 +24,84 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: AppConstants.appName,
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.getLightTheme(),
-      darkTheme: AppTheme.getDarkTheme(),
-      themeMode: ThemeMode.system,
-      
-      home: MultiProvider(
-        providers: [
-          ChangeNotifierProvider<HabitsNotifier>(
-            create: (_) => di.sl<HabitsNotifier>(),
-          ),
-          // TODO: Registrar otros ChangeNotifiers a medida que se creen
-          // === Feature: Onboarding ===
-          // ChangeNotifierProvider<OnboardingNotifier>(
-          //   create: (_) => OnboardingNotifier(),
-          // ),
-          // === Feature: Social ===
-          // ChangeNotifierProvider<SocialNotifier>(
-          //   create: (_) => SocialNotifier(),
-          // ),
-          // === Feature: Sync ===
-          // ChangeNotifierProvider<SyncNotifier>(
-          //   create: (_) => SyncNotifier(),
-          // ),
-          // === Feature: Profile ===
-          // ChangeNotifierProvider<ProfileNotifier>(
-          //   create: (_) => ProfileNotifier(),
-          // ),
-        ],
-        child: const HomeScreen(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider<HabitsNotifier>(
+          create: (_) => di.sl<HabitsNotifier>(),
+        ),
+        ChangeNotifierProvider<OnboardingNotifier>(
+          create: (_) => di.sl<OnboardingNotifier>(),
+        ),
+      ],
+      child: MaterialApp(
+        title: AppConstants.appName,
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.getLightTheme(),
+        darkTheme: AppTheme.getDarkTheme(),
+        themeMode: ThemeMode.dark, // Default to Dark as per Academic Ethereal brief
+        home: const HomeScreenStateWrapper(),
       ),
     );
   }
 }
 
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+class HomeScreenStateWrapper extends StatelessWidget {
+  const HomeScreenStateWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final onboarding = context.watch<OnboardingNotifier>();
+
+    if (!onboarding.isInitialized) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(color: AppTheme.primaryColor),
+        ),
+      );
+    }
+
+    if (onboarding.hasUser) {
+      return const MainDashboardScaffold();
+    } else {
+      return const OnboardingScreen();
+    }
+  }
+}
+
+class MainDashboardScaffold extends StatefulWidget {
+  const MainDashboardScaffold({super.key});
+
+  @override
+  State<MainDashboardScaffold> createState() => _MainDashboardScaffoldState();
+}
+
+class _MainDashboardScaffoldState extends State<MainDashboardScaffold> {
+  int _currentIndex = 0;
+
+  final List<Widget> _tabs = [
+    const HabitsTodayScreen(),
+    const ProgressScreen(),
+    const ComunidadScreen(),
+    const ProfileScreen(),
+  ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Habitü'),
-        centerTitle: true,
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.check_box_outlined,
-              size: 64,
-              color: AppTheme.primaryColor,
-            ),
-            const SizedBox(height: 24),
-            Text(
-              AppConstants.appName,
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryColor,
-                  ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              AppConstants.appDescription,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppTheme.textSecondary,
-                  ),
-            ),
-            const SizedBox(height: 48),
-            ElevatedButton.icon(
-              onPressed: () {
-                // TODO: Navegar a OnboardingScreen (login)
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Ir a Login')),
-                );
-              },
-              icon: const Icon(Icons.login),
-              label: const Text('Iniciar Sesión'),
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: () {
-                // TODO: Navegar a RegisterScreen
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Ir a Registro')),
-                );
-              },
-              icon: const Icon(Icons.person_add),
-              label: const Text('Crear Cuenta'),
-            ),
-          ],
-        ),
+      body: _tabs[_currentIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.today), label: 'Hoy'),
+          BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: 'Progreso'),
+          BottomNavigationBarItem(icon: Icon(Icons.group_outlined), label: 'Comunidad'),
+          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Mi Espacio'),
+        ],
       ),
     );
   }
