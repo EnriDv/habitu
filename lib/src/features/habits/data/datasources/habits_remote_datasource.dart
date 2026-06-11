@@ -1,36 +1,24 @@
-
-
-import 'dart:convert';
-// import '../../../core/network/custom_http_client.dart';
-// import '../../../core/constants/api_constants.dart';
 import '../../domain/entities/habit.dart';
 import '../../domain/entities/habit_log.dart';
-import '../../domain/repositories/habits_repository.dart';
-
+import 'package:habitu/src/core/exceptions/app_exceptions.dart';
 
 class HabitsRemoteDataSource {
- 
   Future<List<Habit>> getHabits({required String token}) async {
-    
-    return [];
+    throw NetworkException(message: 'El backend no está disponible en este momento');
   }
 
-  
   Future<Habit> getHabitById({
     required String habitId,
     required String token,
   }) async {
-   
-    throw UnimplementedError();
+    throw NetworkException(message: 'El backend no está disponible en este momento');
   }
 
-  
   Future<Habit> createHabit({
     required Habit habit,
     required String token,
   }) async {
-    
-    throw UnimplementedError();
+    throw NetworkException(message: 'El backend no está disponible en este momento');
   }
 
   Future<Habit> updateHabit({
@@ -38,16 +26,14 @@ class HabitsRemoteDataSource {
     required Habit habit,
     required String token,
   }) async {
-   
-    throw UnimplementedError();
+    throw NetworkException(message: 'El backend no está disponible en este momento');
   }
 
-  
   Future<void> deleteHabit({
     required String habitId,
     required String token,
   }) async {
-   
+    throw NetworkException(message: 'El backend no está disponible en este momento');
   }
 
   Future<HabitLog> completeHabit({
@@ -56,8 +42,7 @@ class HabitsRemoteDataSource {
     String? notes,
     required String token,
   }) async {
-
-    throw UnimplementedError();
+    throw NetworkException(message: 'El backend no está disponible en este momento');
   }
 
   Future<List<HabitLog>> getHabitLogs({
@@ -66,8 +51,7 @@ class HabitsRemoteDataSource {
     int limit = 30,
     int offset = 0,
   }) async {
- 
-    return [];
+    throw NetworkException(message: 'El backend no está disponible en este momento');
   }
 
   Future<String> uploadEvidencePhoto({
@@ -75,16 +59,13 @@ class HabitsRemoteDataSource {
     required String photoPath,
     required String token,
   }) async {
-    
-    throw UnimplementedError();
+    throw NetworkException(message: 'El backend no está disponible en este momento');
   }
 
-  
   Future<Map<String, dynamic>> syncHabits({
     required Map<String, dynamic> changes,
     required String token,
   }) async {
-
-    return {};
+    throw NetworkException(message: 'El backend no está disponible en este momento');
   }
 }
