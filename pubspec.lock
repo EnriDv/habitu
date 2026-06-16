@@ -368,6 +368,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.3.2"
+  habitu_ui:
+    dependency: "direct main"
+    description:
+      path: "../habitu_ui"
+      relative: true
+    source: path
+    version: "0.0.1"
   hooks:
     dependency: transitive
     description:

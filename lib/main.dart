@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:habitu_ui/habitu_ui.dart';
 import 'package:provider/provider.dart';
 import 'src/core/di/injection_container.dart' as di;
 import 'src/core/theme/app_theme.dart';
@@ -89,7 +90,7 @@ class _MainDashboardScaffoldState extends State<MainDashboardScaffold> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: _tabs[_currentIndex],
-      bottomNavigationBar: BottomNavigationBar(
+      bottomNavigationBar: HabituNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) {
           setState(() {
