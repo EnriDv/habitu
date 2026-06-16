@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
+import 'package:habitu_ui/habitu_ui.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../habits/domain/entities/habit.dart';
 import '../../../habits/presentation/notifiers/habits_notifier.dart';
@@ -209,12 +210,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ),
           const Spacer(),
           // Buttons
-          ElevatedButton(
+          HabituButton(
+            label: 'Comenzar Mi Viaje',
             onPressed: _nextPage,
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size(double.infinity, 56),
-            ),
-            child: const Text('Comenzar Mi Viaje'),
+            fullWidth: true,
           ),
           const SizedBox(height: 16),
           Text(
@@ -339,12 +338,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          ElevatedButton(
+          HabituButton(
+            label: 'Continuar',
             onPressed: (notifier.persona != null && notifier.academicProgram != null) ? _nextPage : null,
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size(double.infinity, 56),
-            ),
-            child: const Text('Continuar'),
+            fullWidth: true,
           ),
         ],
       ),
@@ -445,16 +442,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          ElevatedButton(
+          HabituButton(
+            label: _selectedHabitIndexes.isEmpty
+                ? 'Saltar y continuar'
+                : 'Crear ${_selectedHabitIndexes.length} hábitos',
             onPressed: _nextPage,
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size(double.infinity, 56),
-            ),
-            child: Text(
-              _selectedHabitIndexes.isEmpty 
-                  ? 'Saltar y continuar' 
-                  : 'Crear ${_selectedHabitIndexes.length} hábitos',
-            ),
+            fullWidth: true,
           ),
         ],
       ),
@@ -543,41 +536,44 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               const SizedBox(height: 40),
               
               // Primary button: Register
-              ElevatedButton(
-                onPressed: notifier.isLoading ? null : () async {
-                  if (_formKey.currentState!.validate()) {
-                    final success = await notifier.completeOnboarding(anonymous: false);
-                    if (success) {
-                      await NotificationService().requestNotificationPermission(context);
-                      await _saveInitialHabits(notifier.user!.id);
-                    }
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 56),
-                ),
-                child: notifier.isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('Registrar e Iniciar'),
-              ),
+              notifier.isLoading
+                  ? const Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8.0),
+                        child: CircularProgressIndicator(color: AppTheme.primaryColor),
+                      ),
+                    )
+                  : HabituButton(
+                      label: 'Registrar e Iniciar',
+                      onPressed: () async {
+                        if (_formKey.currentState!.validate()) {
+                          final success = await notifier.completeOnboarding(anonymous: false);
+                          if (success) {
+                            await NotificationService().requestNotificationPermission(context);
+                            await _saveInitialHabits(notifier.user!.id);
+                          }
+                        }
+                      },
+                      fullWidth: true,
+                    ),
               
               const SizedBox(height: 12),
               
               // Secondary button: Anonymous
               Center(
-                child: OutlinedButton(
-                  onPressed: notifier.isLoading ? null : () async {
-                    final success = await notifier.completeOnboarding(anonymous: true);
-                    if (success) {
-                      await NotificationService().requestNotificationPermission(context);
-                      await _saveInitialHabits(notifier.user!.id);
-                    }
-                  },
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(double.infinity, 56),
-                  ),
-                  child: const Text('Empezar sin registrarme'),
-                ),
+                child: notifier.isLoading
+                    ? const SizedBox.shrink()
+                    : HabituButton.outlined(
+                        label: 'Empezar sin registrarme',
+                        onPressed: () async {
+                          final success = await notifier.completeOnboarding(anonymous: true);
+                          if (success) {
+                            await NotificationService().requestNotificationPermission(context);
+                            await _saveInitialHabits(notifier.user!.id);
+                          }
+                        },
+                        fullWidth: true,
+                      ),
               ),
               
               if (notifier.localUsers.isNotEmpty) ...[
@@ -616,14 +612,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     final isAnon = prevUser.email.startsWith('anonimo_') && prevUser.email.endsWith('@habitu.app');
                     final displayEmail = isAnon ? 'Sesión Temporal' : prevUser.email;
                     
-                    return Card(
+                    return HabituCard(
                       color: AppTheme.surfaceContainerLow,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        side: BorderSide(
-                          color: Colors.white.withOpacity(0.05),
-                        ),
+                      borderRadius: 16.0,
+                      borderSide: BorderSide(
+                        color: Colors.white.withOpacity(0.05),
                       ),
+                      padding: EdgeInsets.zero,
                       child: ListTile(
                         leading: CircleAvatar(
                           backgroundColor: AppTheme.primaryColor.withOpacity(0.1),

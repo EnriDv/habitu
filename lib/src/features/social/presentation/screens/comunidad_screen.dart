@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
+import 'package:habitu_ui/habitu_ui.dart';
 import '../../../onboarding/presentation/notifiers/onboarding_notifier.dart';
 
 class ComunidadScreen extends StatefulWidget {
@@ -93,26 +94,22 @@ class _ComunidadScreenState extends State<ComunidadScreen> {
                 ),
               ),
               const SizedBox(height: 32),
-              ElevatedButton.icon(
-                onPressed: _isConnecting ? null : _retryConnection,
-                icon: _isConnecting
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
+              _isConnecting
+                  ? const SizedBox(
+                      width: 200,
+                      height: 56,
+                      child: Center(
                         child: CircularProgressIndicator(
                           strokeWidth: 2.5,
-                          color: AppTheme.onPrimary,
+                          color: AppTheme.primaryColor,
                         ),
-                      )
-                    : const Icon(Icons.refresh),
-                label: Text(
-                  _isConnecting ? 'Conectando...' : 'Reintentar Conexión',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Inter'),
-                ),
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(200, 56),
-                ),
-              ),
+                      ),
+                    )
+                  : HabituButton(
+                      label: 'Reintentar Conexión',
+                      onPressed: _retryConnection,
+                      icon: Icons.refresh,
+                    ),
             ],
           ),
         ),
