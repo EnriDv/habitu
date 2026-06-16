@@ -1,7 +1,9 @@
-import 'package:flutter/foundation.dart';
+﻿import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 import 'package:drift/drift.dart';
 import '../../../../core/database/app_database.dart';
+import 'package:get_it/get_it.dart';
+import '../../../habits/data/services/sync_manager.dart';
 import '../../domain/entities/user.dart' as ent;
 
 class OnboardingNotifier extends ChangeNotifier {
@@ -117,7 +119,7 @@ class OnboardingNotifier extends ChangeNotifier {
     }
   }
 
-  /// Inicia sesión con una cuenta local existente
+  /// Inicia sesiÃ³n con una cuenta local existente
   Future<bool> loginWithExistingUser(String userId) async {
     _isLoading = true;
     _errorMessage = null;
@@ -153,6 +155,7 @@ class OnboardingNotifier extends ChangeNotifier {
       }
 
       await _loadLocalUsersList();
+      try { GetIt.instance<SyncManager>().sync(); } catch(e) {}
       _isLoading = false;
       notifyListeners();
       return true;
@@ -174,12 +177,12 @@ class OnboardingNotifier extends ChangeNotifier {
       final userId = _uuid.v4();
       final userEmail = anonymous ? 'anonimo_$userId@habitu.app' : _email.trim();
       final userName = anonymous 
-          ? (_fullName.trim().isNotEmpty ? _fullName.trim() : 'Estudiante Anónimo') 
+          ? (_fullName.trim().isNotEmpty ? _fullName.trim() : 'Estudiante AnÃ³nimo') 
           : _fullName.trim();
       final userPersona = _persona ?? 'Deep Thinker';
 
       if (!anonymous && (!userEmail.contains('@') || !userEmail.contains('.'))) {
-        throw Exception('Por favor ingresa un correo electrónico válido');
+        throw Exception('Por favor ingresa un correo electrÃ³nico vÃ¡lido');
       }
 
       if (!anonymous && userName.isEmpty) {
@@ -228,6 +231,7 @@ class OnboardingNotifier extends ChangeNotifier {
       );
 
       await _loadLocalUsersList();
+      try { GetIt.instance<SyncManager>().sync(); } catch(e) {}
       _isLoading = false;
       notifyListeners();
       return true;
@@ -239,7 +243,7 @@ class OnboardingNotifier extends ChangeNotifier {
     }
   }
 
-  /// Cierra sesión
+  /// Cierra sesiÃ³n
   Future<void> logout() async {
     _isLoading = true;
     notifyListeners();
@@ -263,3 +267,4 @@ class OnboardingNotifier extends ChangeNotifier {
     }
   }
 }
+

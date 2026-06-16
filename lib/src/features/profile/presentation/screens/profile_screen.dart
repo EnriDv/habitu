@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:get_it/get_it.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -6,6 +6,7 @@ import 'package:habitu_ui/habitu_ui.dart';
 import '../../../onboarding/presentation/notifiers/onboarding_notifier.dart';
 import '../../../habits/presentation/notifiers/habits_notifier.dart';
 import '../../../habits/domain/repositories/habits_repository.dart';
+import '../../../habits/data/services/sync_manager.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../../../core/services/notification_service.dart';
 
@@ -54,8 +55,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _syncing = true;
     });
 
-    // Simular intento de conexión por 1.5 segundos
-    await Future.delayed(const Duration(milliseconds: 1500));
+    // Simular intento de conexiÃ³n por 1.5 segundos
+    try { await GetIt.instance<SyncManager>().sync(); } catch(e) {}
 
     if (mounted) {
       setState(() {
@@ -63,7 +64,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Error de conexión: No se pudo establecer contacto con el servidor. Datos guardados de forma segura localmente.'),
+          content: Text('Error de conexiÃ³n: No se pudo establecer contacto con el servidor. Datos guardados de forma segura localmente.'),
           backgroundColor: AppTheme.errorColor,
         ),
       );
@@ -82,36 +83,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
             shrinkWrap: true,
             children: const [
               ExpansionTile(
-                title: Text('¿La app gasta mis megas de internet?', style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Inter', fontSize: 13)),
+                title: Text('Â¿La app gasta mis megas de internet?', style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Inter', fontSize: 13)),
                 children: [
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                     child: Text(
-                      'No. Habitü funciona 100% sin conexión. Tus datos se guardan en tu teléfono y solo se sincronizan cuando estás conectado a Wi-Fi o red móvil.',
+                      'No. HabitÃ¼ funciona 100% sin conexiÃ³n. Tus datos se guardan en tu telÃ©fono y solo se sincronizan cuando estÃ¡s conectado a Wi-Fi o red mÃ³vil.',
                       style: TextStyle(fontSize: 12, color: AppTheme.onSurfaceVariant),
                     ),
                   )
                 ],
               ),
               ExpansionTile(
-                title: Text('¿Cómo encuentro a mis amigos?', style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Inter', fontSize: 13)),
+                title: Text('Â¿CÃ³mo encuentro a mis amigos?', style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Inter', fontSize: 13)),
                 children: [
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                     child: Text(
-                      'Al sincronizar contactos, la app encripta tus números telefónicos usando un hash SHA-256 anónimo. Solo comparamos los hashes en el servidor para proteger tu privacidad.',
+                      'Al sincronizar contactos, la app encripta tus nÃºmeros telefÃ³nicos usando un hash SHA-256 anÃ³nimo. Solo comparamos los hashes en el servidor para proteger tu privacidad.',
                       style: TextStyle(fontSize: 12, color: AppTheme.onSurfaceVariant),
                     ),
                   )
                 ],
               ),
               ExpansionTile(
-                title: Text('¿Qué pasa si olvido marcar un hábito ayer?', style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Inter', fontSize: 13)),
+                title: Text('Â¿QuÃ© pasa si olvido marcar un hÃ¡bito ayer?', style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Inter', fontSize: 13)),
                 children: [
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                     child: Text(
-                      'Puedes seleccionar el día anterior en el calendario de la pantalla de "Hoy" y marcar el hábito retroactivamente para salvar tu consistencia.',
+                      'Puedes seleccionar el dÃ­a anterior en el calendario de la pantalla de "Hoy" y marcar el hÃ¡bito retroactivamente para salvar tu consistencia.',
                       style: TextStyle(fontSize: 12, color: AppTheme.onSurfaceVariant),
                     ),
                   )
@@ -147,12 +148,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Icon(Icons.warning_amber_rounded, color: AppTheme.accentColor, size: 28),
               SizedBox(width: 8),
               Expanded(
-                child: Text('¡Espera! Tienes cambios', style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Inter')),
+                child: Text('Â¡Espera! Tienes cambios', style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Inter')),
               ),
             ],
           ),
           content: Text(
-            'Tienes $_pendingCount meta(s) o log(s) marcados que aún no se han guardado en la nube por falta de conexión. Si cierras sesión ahora, perderás permanentemente este progreso.',
+            'Tienes $_pendingCount meta(s) o log(s) marcados que aÃºn no se han guardado en la nube por falta de conexiÃ³n. Si cierras sesiÃ³n ahora, perderÃ¡s permanentemente este progreso.',
             style: const TextStyle(color: AppTheme.onSurfaceVariant, fontFamily: 'Inter'),
           ),
           actions: [
@@ -163,12 +164,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 context.read<HabitsNotifier>().reset();
               },
               child: Text(
-                'Cerrar sesión de todos modos',
+                'Cerrar sesiÃ³n de todos modos',
                 style: TextStyle(color: AppTheme.errorColor.withOpacity(0.8), fontFamily: 'Inter'),
               ),
             ),
             HabituButton(
-              label: 'Esperar a tener conexión',
+              label: 'Esperar a tener conexiÃ³n',
               onPressed: () => Navigator.pop(context),
             )
           ],
@@ -180,9 +181,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         context: context,
         builder: (context) => AlertDialog(
           backgroundColor: AppTheme.surfaceContainerHigh,
-          title: const Text('¿Cerrar Sesión?', style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Inter')),
+          title: const Text('Â¿Cerrar SesiÃ³n?', style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Inter')),
           content: const Text(
-            '¿Estás seguro de que deseas cerrar sesión en tu cuenta de Habitü?',
+            'Â¿EstÃ¡s seguro de que deseas cerrar sesiÃ³n en tu cuenta de HabitÃ¼?',
             style: TextStyle(color: AppTheme.onSurfaceVariant, fontFamily: 'Inter'),
           ),
           actions: [
@@ -193,7 +194,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ElevatedButton(
               onPressed: () => Navigator.pop(context, true),
               style: ElevatedButton.styleFrom(backgroundColor: AppTheme.errorColor, foregroundColor: AppTheme.onError),
-              child: const Text('Cerrar Sesión'),
+              child: const Text('Cerrar SesiÃ³n'),
             )
           ],
         ),
@@ -250,7 +251,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             icon: const Icon(Icons.edit, size: 12, color: AppTheme.onPrimary),
                             onPressed: () {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Edición de avatar deshabilitada temporalmente')),
+                                const SnackBar(content: Text('EdiciÃ³n de avatar deshabilitada temporalmente')),
                               );
                             },
                           ),
@@ -266,7 +267,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${user?.academicProgram ?? "Carrera"} • Arquetipo: ${user?.persona ?? "Deep Thinker"}',
+                  '${user?.academicProgram ?? "Carrera"} â€¢ Arquetipo: ${user?.persona ?? "Deep Thinker"}',
                   style: TextStyle(color: AppTheme.onSurfaceVariant.withOpacity(0.8), fontFamily: 'Inter', fontSize: 13),
                 ),
               ],
@@ -307,8 +308,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const SizedBox(height: 2),
                       Text(
                         isOffline 
-                            ? 'Tienes $_pendingCount cambios guardados localmente en este teléfono.'
-                            : 'Todos tus datos están seguros en este dispositivo.',
+                            ? 'Tienes $_pendingCount cambios guardados localmente en este telÃ©fono.'
+                            : 'Todos tus datos estÃ¡n seguros en este dispositivo.',
                         style: const TextStyle(fontSize: 12, color: AppTheme.onSurfaceVariant),
                       ),
                     ],
@@ -326,7 +327,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 32),
 
           // Settings Options
-          Text('Configuración', style: Theme.of(context).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold)),
+          Text('ConfiguraciÃ³n', style: Theme.of(context).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           Container(
             decoration: BoxDecoration(
@@ -379,7 +380,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Inter', color: Colors.white),
                                   ),
                                   content: const Text(
-                                    'Para recibir tus recordatorios diarios de hábitos, debes activar las notificaciones en la configuración del sistema.',
+                                    'Para recibir tus recordatorios diarios de hÃ¡bitos, debes activar las notificaciones en la configuraciÃ³n del sistema.',
                                     style: TextStyle(color: AppTheme.onSurfaceVariant, fontFamily: 'Inter'),
                                   ),
                                   actions: [
@@ -410,7 +411,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         });
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('Recordatorios desactivados en esta aplicación.'),
+                            content: Text('Recordatorios desactivados en esta aplicaciÃ³n.'),
                             backgroundColor: AppTheme.primaryColor,
                           ),
                         );
@@ -435,7 +436,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ElevatedButton.icon(
             onPressed: () => _handleLogout(onboarding),
             icon: const Icon(Icons.logout),
-            label: const Text('Cerrar Sesión'),
+            label: const Text('Cerrar SesiÃ³n'),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.errorContainer.withOpacity(0.2),
               foregroundColor: AppTheme.errorColor,
@@ -449,3 +450,5 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 }
+
+

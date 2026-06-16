@@ -1,8 +1,10 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import 'package:habitu_ui/habitu_ui.dart';
 import '../../../onboarding/presentation/notifiers/onboarding_notifier.dart';
+import 'package:get_it/get_it.dart';
+import '../../../habits/data/services/sync_manager.dart';
 
 class ComunidadScreen extends StatefulWidget {
   const ComunidadScreen({super.key});
@@ -19,8 +21,8 @@ class _ComunidadScreenState extends State<ComunidadScreen> {
       _isConnecting = true;
     });
 
-    // Simular intento de conexión por 2 segundos
-    await Future.delayed(const Duration(seconds: 2));
+    // Simular intento de conexiÃ³n por 2 segundos
+    try { await GetIt.instance<SyncManager>().sync(); } catch(e) {}
 
     if (mounted) {
       setState(() {
@@ -28,7 +30,7 @@ class _ComunidadScreenState extends State<ComunidadScreen> {
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Error de conexión: El servidor no responde. Inténtalo más tarde.'),
+          content: Text('Error de conexiÃ³n: El servidor no responde. IntÃ©ntalo mÃ¡s tarde.'),
           backgroundColor: AppTheme.errorColor,
         ),
       );
@@ -76,7 +78,7 @@ class _ComunidadScreenState extends State<ComunidadScreen> {
               ),
               const SizedBox(height: 24),
               Text(
-                'Sin Conexión a la Comunidad',
+                'Sin ConexiÃ³n a la Comunidad',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.bold,
@@ -85,7 +87,7 @@ class _ComunidadScreenState extends State<ComunidadScreen> {
               ),
               const SizedBox(height: 12),
               Text(
-                'Para interactuar con tus compañeros, unirte a retos y ver la tabla de consistencia grupal, necesitas estar conectado al servidor.',
+                'Para interactuar con tus compaÃ±eros, unirte a retos y ver la tabla de consistencia grupal, necesitas estar conectado al servidor.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: AppTheme.onSurfaceVariant,
@@ -106,7 +108,7 @@ class _ComunidadScreenState extends State<ComunidadScreen> {
                       ),
                     )
                   : HabituButton(
-                      label: 'Reintentar Conexión',
+                      label: 'Reintentar ConexiÃ³n',
                       onPressed: _retryConnection,
                       icon: Icons.refresh,
                     ),
@@ -117,3 +119,4 @@ class _ComunidadScreenState extends State<ComunidadScreen> {
     );
   }
 }
+

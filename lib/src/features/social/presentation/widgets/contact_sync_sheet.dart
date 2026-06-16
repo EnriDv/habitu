@@ -1,6 +1,8 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
 import 'package:habitu_ui/habitu_ui.dart';
+import 'package:get_it/get_it.dart';
+import '../../../../features/habits/data/services/sync_manager.dart';
 
 class ContactSyncSheet extends StatefulWidget {
   const ContactSyncSheet({super.key});
@@ -15,7 +17,7 @@ class _ContactSyncSheetState extends State<ContactSyncSheet> {
 
   final List<Map<String, String>> _foundPeers = [
     {'name': 'Daniel Castro', 'career': 'Ing. Sistemas', 'initials': 'DC'},
-    {'name': 'Luciana Mendez', 'career': 'Psicología', 'initials': 'LM'},
+    {'name': 'Luciana Mendez', 'career': 'PsicologÃ­a', 'initials': 'LM'},
     {'name': 'Andres Torrez', 'career': 'Derecho', 'initials': 'AT'},
   ];
 
@@ -26,7 +28,7 @@ class _ContactSyncSheetState extends State<ContactSyncSheet> {
       _isSyncing = true;
     });
     // Simulate contact hashing and searching
-    Future.delayed(const Duration(seconds: 2), () {
+    GetIt.instance<SyncManager>().sync().then((_) {
       if (mounted) {
         setState(() {
           _isSyncing = false;
@@ -80,7 +82,7 @@ class _ContactSyncSheetState extends State<ContactSyncSheet> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Sincronizaremos tus contactos de forma segura. Tus números telefónicos se encriptan con hash SHA-256 anónimo antes de subirse para total privacidad.',
+              'Sincronizaremos tus contactos de forma segura. Tus nÃºmeros telefÃ³nicos se encriptan con hash SHA-256 anÃ³nimo antes de subirse para total privacidad.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppTheme.onSurfaceVariant),
             ),
@@ -181,3 +183,4 @@ class _ContactSyncSheetState extends State<ContactSyncSheet> {
     );
   }
 }
+

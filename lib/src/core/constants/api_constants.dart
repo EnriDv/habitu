@@ -1,7 +1,10 @@
-/// Constantes de API - Endpoints del backend en .NET Core
+﻿/// Constantes de API - Endpoints del backend en .NET Core
 class ApiConstants {
 
-  static const String baseUrl = 'http://10.0.2.2:5000/api';
+  static const String baseUrl = String.fromEnvironment(
+    'BACKEND_URL',
+    defaultValue: 'http://10.0.2.2:5000/api',
+  );
 
   // ==================== AUTH ====================
   static const String loginEndpoint = '/auth/login';
@@ -51,3 +54,4 @@ class ApiConstants {
   // ==================== HEALTH CHECK ====================
   static const String healthCheckEndpoint = '/health';
 }
+
