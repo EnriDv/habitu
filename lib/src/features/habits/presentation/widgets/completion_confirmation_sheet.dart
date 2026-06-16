@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/theme/app_theme.dart';
+import 'package:habitu_ui/habitu_ui.dart';
 import '../../domain/entities/habit.dart';
 import '../../../../core/services/notification_service.dart';
 
@@ -183,7 +184,8 @@ class _CompletionConfirmationSheetState extends State<CompletionConfirmationShee
 
             // Action 2: Trust me
             if (_imageFile == null) ...[
-              OutlinedButton.icon(
+              HabituButton.outlined(
+                label: 'Confía en Mí (Honestidad)',
                 onPressed: () {
                   Navigator.pop(context, {
                     'complete': true,
@@ -191,13 +193,8 @@ class _CompletionConfirmationSheetState extends State<CompletionConfirmationShee
                     'notes': _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
                   });
                 },
-                icon: const Icon(Icons.done_all),
-                label: const Text('Confía en Mí (Honestidad)'),
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 56),
-                  foregroundColor: AppTheme.onSurface,
-                  side: BorderSide(color: AppTheme.outline.withOpacity(0.3)),
-                ),
+                icon: Icons.done_all,
+                fullWidth: true,
               ),
               const SizedBox(height: 16),
             ],

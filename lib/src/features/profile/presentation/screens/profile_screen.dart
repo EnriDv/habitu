@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:get_it/get_it.dart';
 import '../../../../core/theme/app_theme.dart';
+import 'package:habitu_ui/habitu_ui.dart';
 import '../../../onboarding/presentation/notifiers/onboarding_notifier.dart';
 import '../../../habits/presentation/notifiers/habits_notifier.dart';
 import '../../../habits/domain/repositories/habits_repository.dart';
@@ -166,9 +167,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 style: TextStyle(color: AppTheme.errorColor.withOpacity(0.8), fontFamily: 'Inter'),
               ),
             ),
-            ElevatedButton(
+            HabituButton(
+              label: 'Esperar a tener conexión',
               onPressed: () => Navigator.pop(context),
-              child: const Text('Esperar a tener conexión'),
             )
           ],
         ),
@@ -386,16 +387,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       onPressed: () => Navigator.pop(dialogContext),
                                       child: const Text('Cancelar', style: TextStyle(color: AppTheme.outline)),
                                     ),
-                                    ElevatedButton(
+                                    HabituButton(
+                                      label: 'Ir a Ajustes',
                                       onPressed: () async {
                                         Navigator.pop(dialogContext);
                                         await openAppSettings();
                                       },
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: AppTheme.primaryColor,
-                                        foregroundColor: Colors.white,
-                                      ),
-                                      child: const Text('Ir a Ajustes'),
                                     )
                                   ],
                                 ),

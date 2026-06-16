@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
+import 'package:habitu_ui/habitu_ui.dart';
 
 class ContactSyncSheet extends StatefulWidget {
   const ContactSyncSheet({super.key});
@@ -84,10 +85,10 @@ class _ContactSyncSheetState extends State<ContactSyncSheet> {
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppTheme.onSurfaceVariant),
             ),
             const SizedBox(height: 24),
-            ElevatedButton(
+            HabituButton(
+              label: 'Sincronizar y Buscar',
               onPressed: _startSync,
-              style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 56)),
-              child: const Text('Sincronizar y Buscar'),
+              fullWidth: true,
             ),
           ] else if (_isSyncing) ...[
             const Center(
@@ -146,34 +147,33 @@ class _ContactSyncSheetState extends State<ContactSyncSheet> {
                           ],
                         ),
                       ),
-                      ElevatedButton(
-                        onPressed: () {
-                          setState(() {
-                            if (isFollowing) {
-                              _following.remove(name);
-                            } else {
-                              _following.add(name);
-                            }
-                          });
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: isFollowing ? AppTheme.surfaceContainerHighest : AppTheme.primaryColor,
-                          foregroundColor: isFollowing ? AppTheme.onSurface : AppTheme.onPrimary,
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          minimumSize: const Size(60, 36),
-                        ),
-                        child: Text(isFollowing ? 'Siguiendo' : 'Seguir Racha'),
-                      ),
+                      isFollowing
+                            ? HabituButton.outlined(
+                                label: 'Siguiendo',
+                                onPressed: () {
+                                  setState(() {
+                                    _following.remove(name);
+                                  });
+                                },
+                              )
+                            : HabituButton(
+                                label: 'Seguir Racha',
+                                onPressed: () {
+                                  setState(() {
+                                    _following.add(name);
+                                  });
+                                },
+                              ),
                     ],
                   ),
                 );
               },
             ),
             const SizedBox(height: 24),
-            OutlinedButton(
+            HabituButton.outlined(
+              label: 'Listo',
               onPressed: () => Navigator.pop(context),
-              style: OutlinedButton.styleFrom(minimumSize: const Size(double.infinity, 56)),
-              child: const Text('Listo'),
+              fullWidth: true,
             ),
           ],
         ],
