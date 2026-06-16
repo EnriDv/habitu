@@ -231,7 +231,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       radius: 56,
                       backgroundColor: AppTheme.primaryColor.withOpacity(0.12),
                       child: Text(
-                        user?.fullName.split(" ").map((s) => s[0]).join("").substring(0, 2) ?? 'U',
+                        (() { final name = user?.fullName ?? ''; if (name.isEmpty) return 'U'; final initials = name.trim().split(" ").where((s) => s.isNotEmpty).map((s) => s[0]).join('').toUpperCase(); return initials.length > 2 ? initials.substring(0, 2) : initials; })(),
                         style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: AppTheme.primaryColor),
                       ),
                     ),
@@ -450,5 +450,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 }
+
 
 

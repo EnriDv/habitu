@@ -50,7 +50,7 @@ class _ComunidadScreenState extends State<ComunidadScreen> {
           child: CircleAvatar(
             backgroundColor: AppTheme.primaryColor.withOpacity(0.2),
             child: Text(
-              user?.fullName.split(" ").map((s) => s[0]).join("").substring(0, 2) ?? 'U',
+              (() { final name = user?.fullName ?? ''; if (name.isEmpty) return 'U'; final initials = name.trim().split(" ").where((s) => s.isNotEmpty).map((s) => s[0]).join('').toUpperCase(); return initials.length > 2 ? initials.substring(0, 2) : initials; })(),
               style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryColor),
             ),
           ),
@@ -119,4 +119,5 @@ class _ComunidadScreenState extends State<ComunidadScreen> {
     );
   }
 }
+
 

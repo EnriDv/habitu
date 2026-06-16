@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+﻿import 'package:flutter/foundation.dart';
 import '../../domain/repositories/habits_repository.dart';
 import '../../domain/entities/habit.dart';
 import '../../domain/entities/habit_log.dart';
@@ -36,7 +36,7 @@ class HabitsNotifier extends ChangeNotifier {
   String? get selectedHabitId => _selectedHabitId;
   DateTime get selectedDate => _selectedDate;
 
-  /// Retorna el hábito seleccionado actualmente
+  /// Retorna el hÃ¡bito seleccionado actualmente
   Habit? get selectedHabit {
     if (_selectedHabitId == null) return null;
     try {
@@ -46,14 +46,14 @@ class HabitsNotifier extends ChangeNotifier {
     }
   }
 
-  /// Filtra hábitos para el día seleccionado
+  /// Filtra hÃ¡bitos para el dÃ­a seleccionado
   List<Habit> get habitsForSelectedDate {
-    // Para simplificar, mostramos todos los hábitos activos.
-    // En el futuro, podríamos filtrar según la frecuencia y el día de la semana.
+    // Para simplificar, mostramos todos los hÃ¡bitos activos.
+    // En el futuro, podrÃ­amos filtrar segÃºn la frecuencia y el dÃ­a de la semana.
     return activeHabits;
   }
 
-  /// Verifica si un hábito se completó en la fecha seleccionada
+  /// Verifica si un hÃ¡bito se completÃ³ en la fecha seleccionada
   HabitLog? getCompletionLogForHabit(String habitId, DateTime date) {
     final targetDate = DateTime(date.year, date.month, date.day);
     try {
@@ -66,7 +66,7 @@ class HabitsNotifier extends ChangeNotifier {
     }
   }
 
-  /// Cambia el día seleccionado en el carrusel
+  /// Cambia el dÃ­a seleccionado en el carrusel
   void selectDate(DateTime date) {
     _selectedDate = DateTime(date.year, date.month, date.day);
     notifyListeners();
@@ -77,9 +77,10 @@ class HabitsNotifier extends ChangeNotifier {
     try {
       _habits = await _repository.getHabits(token: token);
       
-      // Cargar logs de todos los hábitos para calcular rachas e historial
+      // Cargar logs de todos los hÃ¡bitos para calcular rachas e historial
       final List<HabitLog> loadedLogs = [];
-      for (final habit in _habits) {
+      final habitsCopy = List<Habit>.from(_habits);
+      for (final habit in habitsCopy) {
         try {
           final logs = await _repository.getHabitLogs(habitId: habit.id, token: token, limit: 100);
           loadedLogs.addAll(logs);
@@ -187,7 +188,7 @@ class HabitsNotifier extends ChangeNotifier {
       _allLogs.remove(tempLog);
       _allLogs.add(savedLog);
       
-      // Si el hábito detallado seleccionado es este, actualizar su vista
+      // Si el hÃ¡bito detallado seleccionado es este, actualizar su vista
       if (_selectedHabitId == habitId) {
         await loadHabitLogs(habitId: habitId, token: token);
       }
@@ -217,7 +218,7 @@ class HabitsNotifier extends ChangeNotifier {
     }
   }
 
-  /// Calcula la racha actual del hábito
+  /// Calcula la racha actual del hÃ¡bito
   int getHabitCurrentStreak(String habitId) {
     final logs = _allLogs.where((l) => l.habitId == habitId).toList();
     if (logs.isEmpty) return 0;
@@ -246,7 +247,7 @@ class HabitsNotifier extends ChangeNotifier {
     return streak;
   }
 
-  /// Calcula la racha más larga del hábito
+  /// Calcula la racha mÃ¡s larga del hÃ¡bito
   int getHabitLongestStreak(String habitId) {
     final logs = _allLogs.where((l) => l.habitId == habitId).toList();
     if (logs.isEmpty) return 0;
@@ -308,3 +309,4 @@ class HabitsNotifier extends ChangeNotifier {
     notifyListeners();
   }
 }
+
