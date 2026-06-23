@@ -44,6 +44,6 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 /context
-
+.env
 *.g.dart
 *.freezed.dart
