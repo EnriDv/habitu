@@ -1,4 +1,4 @@
-import 'package:uuid/uuid.dart';
+﻿import 'package:uuid/uuid.dart';
 import 'package:habitu/src/core/exceptions/app_exceptions.dart' hide AppException;
 import '../datasources/habits_local_datasource.dart';
 import '../datasources/habits_remote_datasource.dart';
@@ -69,7 +69,7 @@ class HabitsRepositoryImpl implements HabitsRepository {
       await _localDataSource.saveHabit(habit: remoteHabit);
       return remoteHabit;
     } on NetworkException {
-      // Guardar localmente y registrar en cola de sincronización
+      // Guardar localmente y registrar en cola de sincronizaciÃ³n
       await _localDataSource.saveHabit(habit: habitWithId);
       await _localDataSource.markHabitAsSyncPending(
         habitId: habitWithId.id,
@@ -120,10 +120,11 @@ class HabitsRepositoryImpl implements HabitsRepository {
     } on NetworkException {
       // Soft-delete local y marcar en cola
       await _localDataSource.deleteHabit(habitId: habitId);
+      final activeUserId = await _localDataSource.getActiveUserId();
       await _localDataSource.markHabitAsSyncPending(
         habitId: habitId,
         operation: 'delete',
-        payload: {'habitId': habitId},
+        payload: {'habitId': habitId, 'userId': activeUserId},
       );
     }
   }
@@ -133,18 +134,21 @@ class HabitsRepositoryImpl implements HabitsRepository {
     required String habitId,
     required String confidenceLevel,
     String? notes,
+    String? photoPath,
+    DateTime? completedAt,
     required String token,
   }) async {
     // Obtener usuario activo
     final userId = await _localDataSource.getActiveUserId();
 
+    final resolvedCompletedAt = completedAt ?? DateTime.now();
     final habitLog = HabitLog(
       id: _uuid.v4(),
       habitId: habitId,
       userId: userId,
-      completedAt: DateTime.now(),
+      completedAt: resolvedCompletedAt,
       notes: notes,
-      evidencePhotoUrl: null,
+      evidencePhotoUrl: photoPath,
       confidenceLevel: confidenceLevel,
       remoteId: null,
       createdAt: DateTime.now(),
@@ -154,7 +158,7 @@ class HabitsRepositoryImpl implements HabitsRepository {
     // Guardado local (Instant offline-first)
     await _localDataSource.insertHabitLog(log: habitLog);
 
-    // Registrar en la cola de sincronización
+    // Registrar en la cola de sincronizaciÃ³n
     await _localDataSource.markHabitLogAsSyncPending(
       habitLogId: habitLog.id,
       payload: habitLog.toJson(),
@@ -170,6 +174,7 @@ class HabitsRepositoryImpl implements HabitsRepository {
 
       final updatedLog = habitLog.copyWith(
         remoteId: remoteLog.remoteId,
+        evidencePhotoUrl: remoteLog.evidencePhotoUrl ?? photoPath,
         syncedAt: DateTime.now(),
       );
       await _localDataSource.updateHabitLog(log: updatedLog);
@@ -236,3 +241,4 @@ class HabitsRepositoryImpl implements HabitsRepository {
     await _localDataSource.markSyncAsComplete(syncId: habitId);
   }
 }
+
