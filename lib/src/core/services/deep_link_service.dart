@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
+import '../../core/theme/app_theme.dart';
 import '../../features/habits/domain/entities/habit.dart';
 import '../../features/habits/presentation/notifiers/habits_notifier.dart';
 import '../../features/habits/presentation/screens/recommendations_screen.dart';
 import '../../features/habits/presentation/screens/routine_detail_screen.dart';
-import '../../features/habits/presentation/widgets/habit_detail_sheet.dart';
 import '../../features/social/presentation/screens/challenge_detail_screen.dart';
 
 class DeepLinkService {
@@ -84,9 +84,48 @@ class DeepLinkService {
 
     await showModalBottomSheet<void>(
       context: context,
-      isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => HabitDetailSheet(habit: resolvedHabit),
+      builder: (_) => SafeArea(
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: const BoxDecoration(
+            color: AppTheme.surfaceContainerHigh,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                resolvedHabit.title,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                resolvedHabit.description?.isNotEmpty == true
+                    ? resolvedHabit.description!
+                    : 'Este hábito se abrió desde un enlace profundo.',
+                style: const TextStyle(color: AppTheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Abre la pestaña Hoy para ver el detalle completo y editar este hábito.',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Entendido'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

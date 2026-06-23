@@ -1,20 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
+import 'package:habitu_ui/habitu_ui.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../../core/services/android_widget_service.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../onboarding/presentation/notifiers/session_onboarding_notifier.dart';
 import '../../domain/entities/habit.dart';
+import '../../domain/entities/habit_log.dart';
 import '../../domain/entities/habit_template_models.dart';
 import '../../domain/entities/routine.dart';
+import '../../domain/repositories/habits_repository.dart';
 import '../notifiers/habits_notifier.dart';
 import '../notifiers/progress_hub_notifier.dart';
-import '../widgets/completion_confirmation_sheet.dart';
-import '../widgets/habit_creator_sheet.dart';
-import '../widgets/habit_detail_sheet.dart';
-import '../widgets/routine_editor_sheet.dart';
-import '../widgets/sync_status_card.dart';
 import 'focus_mode_screen.dart';
 import 'recommendations_screen.dart';
 import 'routine_detail_screen.dart';
@@ -28,6 +29,220 @@ class HabitsTodayScreen extends StatefulWidget {
 
 class _HabitsTodayScreenState extends State<HabitsTodayScreen> {
   String? _lastWidgetSignature;
+  static const List<HabitEditorCategoryOption> _habitCategories = [
+    HabitEditorCategoryOption(label: 'Aprendizaje', emoji: 'book'),
+    HabitEditorCategoryOption(label: 'Bienestar', emoji: 'well'),
+    HabitEditorCategoryOption(label: 'Movimiento', emoji: 'move'),
+    HabitEditorCategoryOption(label: 'Descanso', emoji: 'rest'),
+    HabitEditorCategoryOption(label: 'Meta', emoji: 'goal'),
+  ];
+
+  Future<bool> _requestEvidencePermission(HabitEvidenceSource source) {
+    final notificationService = NotificationService();
+    return source == HabitEvidenceSource.camera
+        ? notificationService.requestCameraPermission(context)
+        : notificationService.requestGalleryPermission(context);
+  }
+
+  Future<Map<String, dynamic>?> showCompletionConfirmationSheet(
+    BuildContext context, {
+    required Habit habit,
+  }) {
+    return showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetContext) => CompletionConfirmationSheet(
+        habitTitle: habit.title,
+        onRequestEvidence: (source) async {
+          final granted = await _requestEvidencePermission(source);
+          if (!granted) {
+            return null;
+          }
+
+          final picker = ImagePicker();
+          final photo = await picker.pickImage(
+            source: source == HabitEvidenceSource.camera
+                ? ImageSource.camera
+                : ImageSource.gallery,
+            maxWidth: 1024,
+            maxHeight: 1024,
+            imageQuality: 85,
+          );
+          return photo?.path;
+        },
+        onSubmit: (result) {
+          Navigator.pop(sheetContext, {
+            'complete': true,
+            'evidence': result.hasEvidence,
+            'notes': result.notes,
+            'photoPath': result.photoPath,
+          });
+        },
+        onCancel: () => Navigator.pop(sheetContext, {'complete': false}),
+      ),
+    );
+  }
+
+  Future<void> showHabitEditorSheet(
+    BuildContext context, {
+    Habit? habit,
+  }) {
+    final habitsNotifier = context.read<HabitsNotifier>();
+    final onboardingNotifier = context.read<OnboardingNotifier>();
+    final notificationService = NotificationService();
+
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => HabitEditorSheet(
+        title: habit != null ? 'Editar hábito' : 'Crear hábito',
+        initialTitle: habit?.title,
+        initialDescription: habit?.description,
+        initialIcon: habit?.icon ?? 'book',
+        initialColorHex: habit?.colorHex ?? AppTheme.habitColorHexes.first,
+        initialDaysOfWeek: const [1, 2, 3, 4, 5],
+        initialIsPublic: habit?.isPublic ?? false,
+        initialReminderTime: const TimeOfDay(hour: 8, minute: 0),
+        categories: _habitCategories,
+        availableColorHexes: AppTheme.habitColorHexes,
+        onSubmit: (result) async {
+          final userId = onboardingNotifier.user?.id ?? 'anonymous_student';
+          final notificationsAllowed =
+              await notificationService.requestNotificationPermission(context);
+          if (notificationsAllowed) {
+            await notificationService.setNotificationsEnabled(true);
+          }
+
+          bool saved;
+          bool reminderScheduled = false;
+
+          if (habit != null) {
+            final updated = habit.copyWith(
+              title: result.title,
+              description: result.description,
+              icon: result.icon,
+              colorHex: result.colorHex,
+              isPublic: result.isPublic,
+              updatedAt: DateTime.now(),
+            );
+            saved = await habitsNotifier.updateHabit(habit: updated, token: 'offline_token');
+            if (saved && notificationsAllowed) {
+              reminderScheduled = await notificationService.scheduleDailyHabitNotification(
+                habitId: updated.id,
+                title: updated.title,
+                time: result.reminderTime,
+              );
+            }
+          } else {
+            final habitId = const Uuid().v4();
+            final created = Habit(
+              id: habitId,
+              userId: userId,
+              title: result.title,
+              description: result.description,
+              frequencyType: 'daily',
+              colorHex: result.colorHex,
+              icon: result.icon,
+              isPublic: result.isPublic,
+              isDeleted: false,
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
+            );
+            saved = await habitsNotifier.createHabit(habit: created, token: 'offline_token');
+            if (saved && notificationsAllowed) {
+              reminderScheduled = await notificationService.scheduleDailyHabitNotification(
+                habitId: habitId,
+                title: created.title,
+                time: result.reminderTime,
+              );
+            }
+          }
+
+          if (!context.mounted) {
+            return saved;
+          }
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                !notificationsAllowed
+                    ? 'Hábito guardado. El recordatorio no se activó porque faltan permisos de notificación.'
+                    : reminderScheduled
+                        ? 'Hábito guardado. Recordatorio programado correctamente.'
+                        : 'Hábito guardado, pero no pudimos programar el recordatorio en este dispositivo.',
+              ),
+              backgroundColor:
+                  reminderScheduled ? AppTheme.primaryColor : AppTheme.accentColor,
+            ),
+          );
+
+          return saved;
+        },
+        onDelete: habit == null
+            ? null
+            : () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (dialogContext) => AlertDialog(
+                    backgroundColor: AppTheme.surfaceContainerHigh,
+                    title: const Text('¿Eliminar hábito?'),
+                    content: const Text(
+                      'Esta acción detendrá tu racha de este hábito, pero conservaremos tu progreso histórico.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(dialogContext, false),
+                        child: const Text('Cancelar'),
+                      ),
+                      ElevatedButton(
+                        onPressed: () => Navigator.pop(dialogContext, true),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.errorColor,
+                          foregroundColor: AppTheme.onError,
+                        ),
+                        child: const Text('Eliminar'),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirm != true) {
+                  return false;
+                }
+
+                final deleted = await habitsNotifier.deleteHabit(
+                  habitId: habit.id,
+                  token: 'offline_token',
+                );
+                if (deleted) {
+                  await notificationService.cancelHabitNotification(habit.id);
+                }
+                return deleted;
+              },
+      ),
+    );
+  }
+
+  Future<void> showHabitDetailSheet(
+    BuildContext context, {
+    required Habit habit,
+  }) {
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _HabitDetailSheetBridge(
+        initialHabit: habit,
+        onEditRequested: (selectedHabit) async {
+          await showHabitEditorSheet(context, habit: selectedHabit);
+        },
+        onDeleted: () async {
+          await context.read<ProgressHubNotifier>().initialize();
+        },
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -38,8 +253,10 @@ class _HabitsTodayScreenState extends State<HabitsTodayScreen> {
   }
 
   Future<void> _refreshDashboardState(BuildContext context) async {
-    await context.read<HabitsNotifier>().loadHabits(token: 'offline_token');
-    await context.read<ProgressHubNotifier>().initialize();
+    final habitsNotifier = context.read<HabitsNotifier>();
+    final progressHubNotifier = context.read<ProgressHubNotifier>();
+    await habitsNotifier.loadHabits(token: 'offline_token');
+    await progressHubNotifier.initialize();
   }
 
   List<DateTime> _getCurrentWeekDays(DateTime selectedDate) {
@@ -52,11 +269,10 @@ class _HabitsTodayScreenState extends State<HabitsTodayScreen> {
     Habit habit,
     HabitsNotifier notifier,
   ) async {
-    final result = await showModalBottomSheet<Map<String, dynamic>>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (_) => CompletionConfirmationSheet(habit: habit),
+    final progressHubNotifier = context.read<ProgressHubNotifier>();
+    final result = await showCompletionConfirmationSheet(
+      context,
+      habit: habit,
     );
     if (result == null || result['complete'] != true) return;
 
@@ -68,7 +284,7 @@ class _HabitsTodayScreenState extends State<HabitsTodayScreen> {
       token: 'offline_token',
     );
     if (!completed || !context.mounted) return;
-    await context.read<ProgressHubNotifier>().initialize();
+    await progressHubNotifier.initialize();
   }
 
   Future<void> _showCreateMenu(BuildContext context) async {
@@ -103,30 +319,20 @@ class _HabitsTodayScreenState extends State<HabitsTodayScreen> {
                 subtitle: const Text('Crear una meta individual.'),
                 onTap: () {
                   Navigator.of(sheetContext).pop();
-                  showModalBottomSheet<void>(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (_) => const HabitCreatorSheet(),
-                  );
+                  showHabitEditorSheet(context);
                 },
               ),
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: CircleAvatar(
-                  backgroundColor: AppTheme.tertiaryColor.withOpacity(0.2),
+                  backgroundColor: AppTheme.tertiaryColor.withValues(alpha: 0.2),
                   child: const Icon(Icons.layers_outlined, color: AppTheme.tertiaryColor),
                 ),
                 title: const Text('Rutina'),
                 subtitle: const Text('Agrupar varios hábitos en un bloque.'),
                 onTap: () {
                   Navigator.of(sheetContext).pop();
-                  showModalBottomSheet<void>(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (_) => const RoutineEditorSheet(),
-                  );
+                  _showRoutineEditorSheet(context);
                 },
               ),
             ],
@@ -171,6 +377,63 @@ class _HabitsTodayScreenState extends State<HabitsTodayScreen> {
     });
   }
 
+
+  Future<int> _loadPendingSyncCount() async {
+    try {
+      final repository = GetIt.instance<HabitsRepository>();
+      final pendingHabits = await repository.getPendingSyncHabits();
+      return pendingHabits.length;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  Future<void> _showRoutineEditorSheet(
+    BuildContext context, {
+    String? routineId,
+    String? initialTitle,
+    String? initialDescription,
+    String initialTimeOfDay = 'morning',
+    String? initialAnchorTime,
+    List<int> initialDaysOfWeek = const [],
+  }) {
+    final notifier = context.read<ProgressHubNotifier>();
+
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => RoutineEditorSheet(
+        routineId: routineId,
+        initialTitle: initialTitle,
+        initialDescription: initialDescription,
+        initialTimeOfDay: initialTimeOfDay,
+        initialAnchorTime: initialAnchorTime,
+        initialDaysOfWeek: initialDaysOfWeek,
+        onSubmit: (result) async {
+          if (routineId == null) {
+            await notifier.createRoutine(
+              title: result.title,
+              description: result.description,
+              timeOfDay: result.timeOfDay,
+              daysOfWeek: result.daysOfWeek,
+              anchorTime: result.anchorTime,
+            );
+            return;
+          }
+
+          await notifier.updateRoutine(
+            routineId: routineId,
+            title: result.title,
+            description: result.description,
+            timeOfDay: result.timeOfDay,
+            daysOfWeek: result.daysOfWeek,
+            anchorTime: result.anchorTime,
+          );
+        },
+      ),
+    );
+  }
   @override
   Widget build(BuildContext context) {
     final habitsNotifier = context.watch<HabitsNotifier>();
@@ -231,12 +494,17 @@ class _HabitsTodayScreenState extends State<HabitsTodayScreen> {
                       ],
                     ),
                   ),
-                  const SyncStatusCard(),
+                  FutureBuilder<int>(
+                    future: _loadPendingSyncCount(),
+                    builder: (context, snapshot) {
+                      return SyncStatusCard(pendingCount: snapshot.data ?? 0);
+                    },
+                  ),
                 ],
               ),
               if (habitsNotifier.errorMessage != null) ...[
                 const SizedBox(height: 16),
-                _InlineNotice(
+                InlineNotice(
                   text:
                       'Tuvimos un problema al refrescar la vista, pero tus datos locales siguen seguros. ${habitsNotifier.errorMessage!}',
                 ),
@@ -256,12 +524,12 @@ class _HabitsTodayScreenState extends State<HabitsTodayScreen> {
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                          AppTheme.primaryColor.withOpacity(0.12),
-                          AppTheme.tertiaryColor.withOpacity(0.08),
+                          AppTheme.primaryColor.withValues(alpha: 0.12),
+                          AppTheme.tertiaryColor.withValues(alpha: 0.08),
                         ],
                       ),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppTheme.primaryColor.withOpacity(0.15)),
+                      border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.15)),
                     ),
                     child: Row(
                       children: [
@@ -363,17 +631,17 @@ class _HabitsTodayScreenState extends State<HabitsTodayScreen> {
                           margin: const EdgeInsets.symmetric(horizontal: 4),
                           decoration: BoxDecoration(
                             color: isSelected
-                                ? AppTheme.primaryColor.withOpacity(0.15)
+                                ? AppTheme.primaryColor.withValues(alpha: 0.15)
                                 : isToday
-                                    ? AppTheme.surfaceContainerHighest.withOpacity(0.5)
+                                    ? AppTheme.surfaceContainerHighest.withValues(alpha: 0.5)
                                     : Colors.transparent,
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
                               color: isSelected
                                   ? AppTheme.primaryColor
                                   : isToday
-                                      ? AppTheme.outline.withOpacity(0.5)
-                                      : Colors.white.withOpacity(0.05),
+                                      ? AppTheme.outline.withValues(alpha: 0.5)
+                                      : Colors.white.withValues(alpha: 0.05),
                             ),
                           ),
                           child: Column(
@@ -426,21 +694,16 @@ class _HabitsTodayScreenState extends State<HabitsTodayScreen> {
                   );
                 }),
               const SizedBox(height: 8),
-              _SectionHeader(
+              SectionHeader(
                 title: 'Rutinas',
                 actionLabel: 'Nueva',
                 onAction: () {
-                  showModalBottomSheet<void>(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (_) => const RoutineEditorSheet(),
-                  );
+                  _showRoutineEditorSheet(context);
                 },
               ),
               const SizedBox(height: 12),
               if (routines.isEmpty)
-                const _EmptyPanel(
+                const EmptyPanel(
                   title: 'Todavía no tienes rutinas',
                   subtitle: 'Agrupa hábitos por momento del día para ejecutarlos con menos fricción.',
                 )
@@ -450,14 +713,29 @@ class _HabitsTodayScreenState extends State<HabitsTodayScreen> {
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     itemCount: routines.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 12),
+                    separatorBuilder: (_, _) => const SizedBox(width: 12),
                     itemBuilder: (context, index) {
-                      return _RoutineQuickCard(routine: routines[index]);
+                      return RoutineQuickCard(
+                        routine: RoutineQuickCardViewModel(
+                          title: routines[index].title,
+                          description: routines[index].description,
+                          completionRate: routines[index].completionRate,
+                          completedCount: routines[index].completedCount,
+                          habitCount: routines[index].habitCount,
+                        ),
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => RoutineDetailScreen(routineId: routines[index].id),
+                            ),
+                          );
+                        },
+                      );
                     },
                   ),
                 ),
               const SizedBox(height: 24),
-              _SectionHeader(
+              SectionHeader(
                 title: 'Plantillas para empezar',
                 actionLabel: 'Ver más',
                 onAction: () {
@@ -470,7 +748,7 @@ class _HabitsTodayScreenState extends State<HabitsTodayScreen> {
               ),
               const SizedBox(height: 12),
               if (templateHighlights.isEmpty)
-                const _EmptyPanel(
+                const EmptyPanel(
                   title: 'Sin plantillas por ahora',
                   subtitle: 'Cuando carguemos más sugerencias aparecerán aquí.',
                 )
@@ -527,9 +805,9 @@ class _HabitsTodayScreenState extends State<HabitsTodayScreen> {
         padding: const EdgeInsets.only(left: 20),
         alignment: Alignment.centerLeft,
         decoration: BoxDecoration(
-          color: AppTheme.tertiaryColor.withOpacity(0.15),
+          color: AppTheme.tertiaryColor.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: AppTheme.tertiaryColor.withOpacity(0.4)),
+          border: Border.all(color: AppTheme.tertiaryColor.withValues(alpha: 0.4)),
         ),
         child: const Row(
           children: [
@@ -549,9 +827,9 @@ class _HabitsTodayScreenState extends State<HabitsTodayScreen> {
         padding: const EdgeInsets.only(right: 20),
         alignment: Alignment.centerRight,
         decoration: BoxDecoration(
-          color: AppTheme.errorColor.withOpacity(0.1),
+          color: AppTheme.errorColor.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: AppTheme.errorColor.withOpacity(0.3)),
+          border: Border.all(color: AppTheme.errorColor.withValues(alpha: 0.3)),
         ),
         child: const Row(
           mainAxisAlignment: MainAxisAlignment.end,
@@ -570,31 +848,26 @@ class _HabitsTodayScreenState extends State<HabitsTodayScreen> {
       ),
       child: GestureDetector(
         onTap: () {
-          showModalBottomSheet<void>(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: Colors.transparent,
-            builder: (_) => HabitDetailSheet(habit: habit),
-          );
+          showHabitDetailSheet(context, habit: habit);
         },
         child: Container(
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
             color: isCompleted
-                ? AppTheme.surfaceContainerLow.withOpacity(0.5)
+                ? AppTheme.surfaceContainerLow.withValues(alpha: 0.5)
                 : AppTheme.surfaceContainer,
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
               color: isCompleted
-                  ? AppTheme.tertiaryColor.withOpacity(0.3)
-                  : Colors.white.withOpacity(0.04),
+                  ? AppTheme.tertiaryColor.withValues(alpha: 0.3)
+                  : Colors.white.withValues(alpha: 0.04),
               width: 1.5,
             ),
           ),
           child: Row(
             children: [
               CircleAvatar(
-                backgroundColor: parsedColor.withOpacity(0.12),
+                backgroundColor: parsedColor.withValues(alpha: 0.12),
                 radius: 26,
                 child: Text(
                   habit.icon ?? '•',
@@ -621,7 +894,7 @@ class _HabitsTodayScreenState extends State<HabitsTodayScreen> {
                         Text(
                           habit.frequencyType == 'daily' ? 'Diario' : 'Frecuente',
                           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                color: AppTheme.onSurfaceVariant.withOpacity(0.7),
+                                color: AppTheme.onSurfaceVariant.withValues(alpha: 0.7),
                               ),
                         ),
                         if (currentStreak > 0) ...[
@@ -656,7 +929,7 @@ class _HabitsTodayScreenState extends State<HabitsTodayScreen> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: AppTheme.outline.withOpacity(0.4),
+                      color: AppTheme.outline.withValues(alpha: 0.4),
                       width: 2,
                     ),
                   ),
@@ -691,14 +964,9 @@ class _HabitsTodayScreenState extends State<HabitsTodayScreen> {
               ListTile(
                 leading: const Icon(Icons.edit, color: AppTheme.primaryColor),
                 title: const Text('Editar hábito'),
-                onTap: () {
+                onTap: () async {
                   Navigator.of(sheetContext).pop();
-                  showModalBottomSheet<void>(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (_) => HabitCreatorSheet(habit: habit),
-                  );
+                  await showHabitEditorSheet(context, habit: habit);
                 },
               ),
               ListTile(
@@ -758,7 +1026,7 @@ class _HabitsTodayScreenState extends State<HabitsTodayScreen> {
             child: Icon(
               Icons.assignment_turned_in_outlined,
               size: 64,
-              color: AppTheme.outline.withOpacity(0.5),
+              color: AppTheme.outline.withValues(alpha: 0.5),
             ),
           ),
           const SizedBox(height: 24),
@@ -799,7 +1067,6 @@ class _TodayInfoCard extends StatelessWidget {
     required this.subtitle,
     required this.onTap,
   });
-
   @override
   Widget build(BuildContext context) {
     return InkWell(
@@ -810,7 +1077,7 @@ class _TodayInfoCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppTheme.surfaceContainer,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: accent.withOpacity(0.18)),
+          border: Border.all(color: accent.withValues(alpha: 0.18)),
         ),
         child: Row(
           children: [
@@ -818,7 +1085,7 @@ class _TodayInfoCard extends StatelessWidget {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: accent.withOpacity(0.12),
+                color: accent.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(icon, color: accent, size: 18),
@@ -848,72 +1115,6 @@ class _TodayInfoCard extends StatelessWidget {
   }
 }
 
-class _RoutineQuickCard extends StatelessWidget {
-  final RoutineSummary routine;
-
-  const _RoutineQuickCard({required this.routine});
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => RoutineDetailScreen(routineId: routine.id),
-          ),
-        );
-      },
-      borderRadius: BorderRadius.circular(22),
-      child: Container(
-        width: 220,
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: AppTheme.surfaceContainer,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: Colors.white.withOpacity(0.04)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              routine.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              (routine.description ?? '').isEmpty ? 'Sin descripción' : routine.description!,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppTheme.onSurfaceVariant,
-              ),
-            ),
-            const Spacer(),
-            LinearProgressIndicator(
-              value: routine.completionRate,
-              minHeight: 8,
-              borderRadius: BorderRadius.circular(99),
-              backgroundColor: Colors.white.withOpacity(0.05),
-              color: AppTheme.primaryColor,
-            ),
-            const SizedBox(height: 10),
-            Text(
-              '${routine.completedCount}/${routine.habitCount} completados',
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppTheme.primaryColor,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class _TemplateQuickCard extends StatelessWidget {
   final HabitTemplateModel template;
@@ -923,7 +1124,6 @@ class _TemplateQuickCard extends StatelessWidget {
     required this.template,
     required this.onApply,
   });
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -967,96 +1167,115 @@ class _TemplateQuickCard extends StatelessWidget {
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  final String actionLabel;
-  final VoidCallback onAction;
 
-  const _SectionHeader({
-    required this.title,
-    required this.actionLabel,
-    required this.onAction,
+
+
+
+
+
+class _HabitDetailSheetBridge extends StatefulWidget {
+  final Habit initialHabit;
+  final Future<void> Function(Habit habit) onEditRequested;
+  final Future<void> Function() onDeleted;
+
+  const _HabitDetailSheetBridge({
+    required this.initialHabit,
+    required this.onEditRequested,
+    required this.onDeleted,
   });
 
   @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            title,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-          ),
-        ),
-        TextButton(
-          onPressed: onAction,
-          child: Text(actionLabel),
-        ),
-      ],
-    );
-  }
+  State<_HabitDetailSheetBridge> createState() => _HabitDetailSheetBridgeState();
 }
 
-class _InlineNotice extends StatelessWidget {
-  final String text;
+class _HabitDetailSheetBridgeState extends State<_HabitDetailSheetBridge> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<HabitsNotifier>().loadHabitLogs(
+            habitId: widget.initialHabit.id,
+            token: 'offline_token',
+          );
+    });
+  }
 
-  const _InlineNotice({required this.text});
+  Color _parseColor(String hex) {
+    try {
+      return Color(int.parse(hex.replaceAll('#', '0xFF')));
+    } catch (_) {
+      return AppTheme.primaryColor;
+    }
+  }
+
+  HabitDetailLogViewModel _mapLog(HabitLog log) {
+    return HabitDetailLogViewModel(
+      completedAt: log.completedAt,
+      notes: log.notes,
+      evidencePath: log.evidencePhotoUrl,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppTheme.accentColor.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppTheme.accentColor.withOpacity(0.16)),
-      ),
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontSize: 12,
-          color: AppTheme.onSurfaceVariant,
-        ),
-      ),
+    final habitsNotifier = context.watch<HabitsNotifier>();
+    final habit = habitsNotifier.habits.firstWhere(
+      (entry) => entry.id == widget.initialHabit.id,
+      orElse: () => widget.initialHabit,
     );
-  }
-}
 
-class _EmptyPanel extends StatelessWidget {
-  final String title;
-  final String subtitle;
-
-  const _EmptyPanel({
-    required this.title,
-    required this.subtitle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(24),
+    return HabitDetailSheet(
+      habit: HabitDetailViewModel(
+        title: habit.title,
+        currentStreak: habitsNotifier.getHabitCurrentStreak(habit.id),
+        longestStreak: habitsNotifier.getHabitLongestStreak(habit.id),
+        logs: habitsNotifier.currentHabitLogs.map(_mapLog).toList(),
+        accentColor: _parseColor(habit.colorHex),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
+      onEdit: () async {
+        Navigator.pop(context);
+        await widget.onEditRequested(habit);
+      },
+      onDelete: () async {
+        final confirm = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            backgroundColor: AppTheme.surfaceContainerHigh,
+            title: const Text('¿Eliminar hábito?'),
+            content: const Text(
+              'Esta acción detendrá tu racha de este hábito, pero conservaremos tu progreso histórico.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.errorColor,
+                  foregroundColor: AppTheme.onError,
                 ),
+                child: const Text('Eliminar'),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            subtitle,
-            style: const TextStyle(color: AppTheme.onSurfaceVariant),
-          ),
-        ],
-      ),
+        );
+        if (confirm != true) {
+          return false;
+        }
+
+        final deleted = await habitsNotifier.deleteHabit(
+              habitId: habit.id,
+              token: 'offline_token',
+            );
+        if (deleted) {
+          await NotificationService().cancelHabitNotification(habit.id);
+          await widget.onDeleted();
+        }
+        return deleted;
+      },
     );
   }
 }
+

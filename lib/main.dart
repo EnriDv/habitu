@@ -11,7 +11,7 @@ import 'src/features/habits/presentation/notifiers/progress_hub_notifier.dart';
 import 'src/features/onboarding/presentation/notifiers/session_onboarding_notifier.dart';
 import 'src/features/onboarding/presentation/screens/access_screen.dart';
 import 'src/features/onboarding/presentation/screens/initial_setup_screen.dart';
-import 'src/features/habits/presentation/screens/habits_today_screen.dart';
+import 'package:habitu/src/features/habits/presentation/screens/habits_today_screen.dart';
 import 'src/features/habits/presentation/screens/progress_screen.dart';
 import 'src/features/social/presentation/screens/comunidad_screen.dart';
 import 'src/features/social/presentation/notifiers/social_notifier.dart';
@@ -186,3 +186,4 @@ class _MainDashboardScaffoldState extends State<MainDashboardScaffold> {
     );
   }
 }
+

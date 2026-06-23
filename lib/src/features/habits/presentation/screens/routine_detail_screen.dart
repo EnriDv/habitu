@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:habitu_ui/habitu_ui.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/services/android_widget_service.dart';
@@ -7,7 +8,6 @@ import '../../domain/entities/habit.dart';
 import '../../domain/entities/routine.dart';
 import '../notifiers/habits_notifier.dart';
 import '../notifiers/progress_hub_notifier.dart';
-import '../widgets/routine_editor_sheet.dart';
 
 class RoutineDetailScreen extends StatefulWidget {
   final String routineId;
@@ -57,7 +57,7 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Este hábito ya está marcado hoy. Para editar el detalle entra al hábito.'),
+          content: Text('Este hÃ¡bito ya estÃ¡ marcado hoy. Para editar el detalle entra al hÃ¡bito.'),
         ),
       );
       return;
@@ -105,6 +105,16 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
                         initialTimeOfDay: routine.timeOfDay,
                         initialAnchorTime: routine.anchorTime,
                         initialDaysOfWeek: routine.daysOfWeek,
+                        onSubmit: (result) async {
+                          await notifier.updateRoutine(
+                            routineId: routine.id,
+                            title: result.title,
+                            description: result.description,
+                            timeOfDay: result.timeOfDay,
+                            daysOfWeek: result.daysOfWeek,
+                            anchorTime: result.anchorTime,
+                          );
+                        },
                       ),
                     );
                     if (context.mounted) await _refreshRoutineState();
@@ -153,7 +163,7 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
                       ],
                       const SizedBox(height: 14),
                       Text(
-                        'Momento: ${routine.timeOfDay} · Días: ${routine.daysOfWeek.join(', ')}',
+                        'Momento: ${routine.timeOfDay} Â· DÃ­as: ${routine.daysOfWeek.join(', ')}',
                         style: const TextStyle(color: AppTheme.onSurfaceVariant),
                       ),
                     ],
@@ -163,7 +173,7 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
                 Row(
                   children: [
                     Text(
-                      'Hábitos de la rutina',
+                      'HÃ¡bitos de la rutina',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
@@ -294,7 +304,7 @@ class _AssignHabitSheet extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Agregar hábito',
+                    'Agregar hÃ¡bito',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 16),
@@ -311,7 +321,7 @@ class _AssignHabitSheet extends StatelessWidget {
                             borderRadius: BorderRadius.circular(16),
                           ),
                           title: Text(habit.title),
-                          subtitle: Text(habit.description ?? 'Sin descripción'),
+                          subtitle: Text(habit.description ?? 'Sin descripciÃ³n'),
                           trailing: IconButton(
                             icon: const Icon(Icons.add_circle_outline),
                             onPressed: () async {
@@ -348,9 +358,10 @@ class _RoutineEmptyState extends StatelessWidget {
         borderRadius: BorderRadius.circular(22),
       ),
       child: const Text(
-        'No hay hábitos en esta rutina todavía. Agrégales algunos para convertirla en un bloque útil.',
+        'No hay hÃ¡bitos en esta rutina todavÃ­a. AgrÃ©gales algunos para convertirla en un bloque Ãºtil.',
         style: TextStyle(color: AppTheme.onSurfaceVariant),
       ),
     );
   }
 }
+
