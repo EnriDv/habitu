@@ -1,10 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:habitu_ui/habitu_ui.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../onboarding/presentation/notifiers/session_onboarding_notifier.dart';
 import '../notifiers/social_notifier.dart';
 import '../../domain/entities/social_entities.dart';
 import 'friend_detail_screen.dart';
+
+String _initials(String name) {
+  final parts = name.trim().split(' ').where((s) => s.isNotEmpty).toList();
+  if (parts.isEmpty) return 'U';
+  final value = parts.map((s) => s[0].toUpperCase()).join('');
+  return value.length > 2 ? value.substring(0, 2) : value;
+}
+
+Color _parseColor(String hex) {
+  try {
+    return Color(int.parse('FF${hex.replaceFirst('#', '')}', radix: 16));
+  } catch (_) {
+    return AppTheme.primaryColor;
+  }
+}
 
 class ComunidadScreen extends StatefulWidget {
   const ComunidadScreen({super.key});
@@ -47,13 +63,6 @@ class _ComunidadScreenState extends State<ComunidadScreen>
   void dispose() {
     _tabController.dispose();
     super.dispose();
-  }
-
-  String _initials(String name) {
-    final parts = name.trim().split(' ').where((s) => s.isNotEmpty).toList();
-    if (parts.isEmpty) return 'U';
-    final i = parts.map((s) => s[0].toUpperCase()).join('');
-    return i.length > 2 ? i.substring(0, 2) : i;
   }
 
   @override
@@ -119,13 +128,14 @@ class _RankingsTab extends StatelessWidget {
       return const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor));
     }
     if (notifier.rankingsState == SocialLoadingState.error || notifier.rankings.isEmpty) {
-      return _EmptyState(
+      return EmptyStatePanel(
         icon: Icons.emoji_events_outlined,
         title: notifier.rankingsState == SocialLoadingState.error
             ? 'No se pudo cargar el ranking'
             : 'Sin rachas públicas aún',
         subtitle: 'Comparte tus hábitos en público para aparecer aquí.',
-        onRetry: () => notifier.loadRankings(),
+        actionLabel: 'Reintentar',
+        onAction: () => notifier.loadRankings(),
       );
     }
 
@@ -135,140 +145,18 @@ class _RankingsTab extends StatelessWidget {
       child: ListView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         itemCount: notifier.rankings.length,
-        itemBuilder: (_, i) => _RankingCard(entry: notifier.rankings[i]),
-      ),
-    );
-  }
-}
-
-class _RankingCard extends StatelessWidget {
-  final RankingEntry entry;
-  const _RankingCard({required this.entry});
-
-  String _initials(String name) {
-    final parts = name.trim().split(' ').where((s) => s.isNotEmpty).toList();
-    if (parts.isEmpty) return 'U';
-    final i = parts.map((s) => s[0].toUpperCase()).join('');
-    return i.length > 2 ? i.substring(0, 2) : i;
-  }
-
-  Color _parseColor(String hex) {
-    try {
-      return Color(int.parse('FF${hex.replaceFirst('#', '')}', radix: 16));
-    } catch (_) {
-      return AppTheme.primaryColor;
-    }
-  }
-
-  Color get _medalColor {
-    switch (entry.rank) {
-      case 1: return const Color(0xFFFFD700);
-      case 2: return const Color(0xFFC0C0C0);
-      case 3: return const Color(0xFFCD7F32);
-      default: return AppTheme.onSurfaceVariant;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final color = _parseColor(entry.colorHex);
-    final isTop3 = entry.rank <= 3;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: isTop3
-            ? _medalColor.withValues(alpha: 0.08)
-            : AppTheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(14),
-        border: isTop3
-            ? Border.all(color: _medalColor.withValues(alpha: 0.3), width: 1)
-            : null,
-      ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 32,
-            child: isTop3
-                ? Text(
-                    entry.rank == 1 ? '🥇' : entry.rank == 2 ? '🥈' : '🥉',
-                    style: const TextStyle(fontSize: 22),
-                    textAlign: TextAlign.center,
-                  )
-                : Text(
-                    '${entry.rank}',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.onSurfaceVariant,
-                        fontSize: 14,
-                        fontFamily: 'Inter'),
-                    textAlign: TextAlign.center,
-                  ),
+        itemBuilder: (_, i) => RankingCard(
+          entry: RankingCardViewModel(
+            rank: notifier.rankings[i].rank,
+            fullName: notifier.rankings[i].fullName,
+            habitTitle: notifier.rankings[i].habitTitle,
+            currentStreak: notifier.rankings[i].currentStreak,
+            longestStreak: notifier.rankings[i].longestStreak,
+            avatarUrl: notifier.rankings[i].avatarUrl,
+            accentColor: _parseColor(notifier.rankings[i].colorHex),
+            initials: _initials(notifier.rankings[i].fullName),
           ),
-          const SizedBox(width: 10),
-          CircleAvatar(
-            radius: 20,
-            backgroundColor: color.withValues(alpha: 0.15),
-            backgroundImage: entry.avatarUrl != null ? NetworkImage(entry.avatarUrl!) : null,
-            child: entry.avatarUrl == null
-                ? Text(_initials(entry.fullName),
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: color))
-                : null,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(entry.fullName,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.onSurface,
-                        fontFamily: 'Inter',
-                        fontSize: 14)),
-                const SizedBox(height: 2),
-                Row(children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-                  ),
-                  const SizedBox(width: 6),
-                  Flexible(
-                    child: Text(entry.habitTitle,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            color: AppTheme.onSurfaceVariant,
-                            fontSize: 12,
-                            fontFamily: 'Inter')),
-                  ),
-                ]),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Row(children: [
-                const Text('🔥', style: TextStyle(fontSize: 18)),
-                const SizedBox(width: 2),
-                Text('${entry.currentStreak}',
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                        color: isTop3 ? _medalColor : color,
-                        fontFamily: 'Inter')),
-              ]),
-              Text('mejor: ${entry.longestStreak}',
-                  style: const TextStyle(
-                      fontSize: 10,
-                      color: AppTheme.onSurfaceVariant,
-                      fontFamily: 'Inter')),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -299,17 +187,18 @@ class _FriendsTab extends StatelessWidget {
         color: AppTheme.primaryColor,
         onRefresh: notifier.loadFriends,
         child: notifier.friends.isEmpty
-            ? _EmptyState(
+            ? EmptyStatePanel(
                 icon: Icons.group_outlined,
                 title: 'Sin amigos aún',
                 subtitle: 'Usa el botón + para buscar amigos por nombre.',
-                onRetry: notifier.loadFriends,
+                actionLabel: 'Reintentar',
+                onAction: notifier.loadFriends,
               )
             : ListView(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
                 children: [
                   if (notifier.pendingFriends.isNotEmpty) ...[
-                    _SectionHeader(
+                    SectionHeader(
                         title: 'Solicitudes pendientes',
                         count: notifier.pendingFriends.length),
                     const SizedBox(height: 8),
@@ -317,11 +206,34 @@ class _FriendsTab extends StatelessWidget {
                     const SizedBox(height: 20),
                   ],
                   if (notifier.acceptedFriends.isNotEmpty) ...[
-                    _SectionHeader(
+                    SectionHeader(
                         title: 'Mis amigos',
                         count: notifier.acceptedFriends.length),
                     const SizedBox(height: 8),
-                    ...notifier.acceptedFriends.map((f) => _FriendCard(friend: f)),
+                    ...notifier.acceptedFriends.map(
+                      (f) => FriendCard(
+                        friend: FriendCardViewModel(
+                          fullName: f.fullName,
+                          subtitle: f.academicProgram,
+                          avatarUrl: f.avatarUrl,
+                          initials: _initials(f.fullName),
+                        ),
+                        actionLabel: 'Ver rachas',
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ChangeNotifierProvider.value(
+                              value: context.read<SocialNotifier>(),
+                              child: FriendDetailScreen(
+                                friendId: f.friendId,
+                                friendName: f.fullName,
+                                avatarUrl: f.avatarUrl,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ],
               ),
@@ -337,117 +249,6 @@ class _FriendsTab extends StatelessWidget {
       builder: (_) => ChangeNotifierProvider.value(
         value: context.read<SocialNotifier>(),
         child: const _AddFriendSheet(),
-      ),
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  final int count;
-  const _SectionHeader({required this.title, required this.count});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(children: [
-      Text(title,
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: AppTheme.onSurface,
-              fontFamily: 'Inter')),
-      const SizedBox(width: 8),
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-        decoration: BoxDecoration(
-          color: AppTheme.primaryColor.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Text('$count',
-            style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.primaryColor,
-                fontFamily: 'Inter')),
-      ),
-    ]);
-  }
-}
-
-class _FriendCard extends StatelessWidget {
-  final Friend friend;
-  const _FriendCard({required this.friend});
-
-  String _initials(String name) {
-    final parts = name.trim().split(' ').where((s) => s.isNotEmpty).toList();
-    if (parts.isEmpty) return 'U';
-    final i = parts.map((s) => s[0].toUpperCase()).join('');
-    return i.length > 2 ? i.substring(0, 2) : i;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 22,
-            backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.15),
-            backgroundImage: friend.avatarUrl != null ? NetworkImage(friend.avatarUrl!) : null,
-            child: friend.avatarUrl == null
-                ? Text(_initials(friend.fullName),
-                    style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.primaryColor))
-                : null,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(friend.fullName,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.onSurface,
-                        fontFamily: 'Inter',
-                        fontSize: 14)),
-                if (friend.academicProgram != null)
-                  Text(friend.academicProgram!,
-                      style: const TextStyle(
-                          color: AppTheme.onSurfaceVariant,
-                          fontSize: 12,
-                          fontFamily: 'Inter')),
-              ],
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => ChangeNotifierProvider.value(
-                  value: context.read<SocialNotifier>(),
-                  child: FriendDetailScreen(
-                    friendId: friend.friendId,
-                    friendName: friend.fullName,
-                    avatarUrl: friend.avatarUrl,
-                  ),
-                ),
-              ),
-            ),
-            child: const Text('Ver rachas',
-                style: TextStyle(
-                    color: AppTheme.primaryColor,
-                    fontFamily: 'Inter',
-                    fontSize: 13)),
-          ),
-        ],
       ),
     );
   }
@@ -753,13 +554,14 @@ class _ChallengesTab extends StatelessWidget {
       return const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor));
     }
     if (notifier.challengesState == SocialLoadingState.error || notifier.challenges.isEmpty) {
-      return _EmptyState(
+      return EmptyStatePanel(
         icon: Icons.flag_outlined,
         title: notifier.challengesState == SocialLoadingState.error
             ? 'No se pudieron cargar los retos'
             : 'Sin retos disponibles',
         subtitle: 'Los retos universitarios aparecerán aquí cuando estén disponibles.',
-        onRetry: () => notifier.loadChallenges(),
+        actionLabel: 'Reintentar',
+        onAction: () => notifier.loadChallenges(),
       );
     }
 
@@ -786,210 +588,33 @@ class _ChallengeCard extends StatefulWidget {
 class _ChallengeCardState extends State<_ChallengeCard> {
   bool _joining = false;
 
-  Color get _categoryColor {
-    switch (widget.challenge.category.toLowerCase()) {
-      case 'salud': return const Color(0xFF96D3BD);
-      case 'estudio': return const Color(0xFFA7C8FF);
-      case 'deporte': return const Color(0xFFE2B2B2);
-      default: return const Color(0xFFD0B2E2);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final ch = widget.challenge;
-    final color = _categoryColor;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(16),
-        border: ch.isJoined
-            ? Border.all(color: const Color(0xFF96D3BD).withValues(alpha: 0.4), width: 1)
-            : null,
+    return ChallengeCard(
+      challenge: ChallengeCardViewModel(
+        title: ch.title,
+        description: ch.description,
+        category: ch.category,
+        dateRangeLabel: '${ch.startDate} – ${ch.endDate}',
+        participantsLabel: ch.maxParticipants != null
+            ? '${ch.participantCount}/${ch.maxParticipants}'
+            : '${ch.participantCount}',
+        isJoined: ch.isJoined,
+        isFull: ch.isFull,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            height: 6,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(ch.category.toUpperCase(),
-                        style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: color,
-                            letterSpacing: 1,
-                            fontFamily: 'Inter')),
-                  ),
-                  const Spacer(),
-                  if (ch.isJoined)
-                    const Row(children: [
-                      Icon(Icons.check_circle, color: Color(0xFF96D3BD), size: 16),
-                      SizedBox(width: 4),
-                      Text('Unido',
-                          style: TextStyle(
-                              color: Color(0xFF96D3BD),
-                              fontSize: 12,
-                              fontFamily: 'Inter',
-                              fontWeight: FontWeight.w600)),
-                    ]),
-                ]),
-                const SizedBox(height: 12),
-                Text(ch.title,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.onSurface,
-                        fontSize: 16,
-                        fontFamily: 'Inter')),
-                if (ch.description != null) ...[
-                  const SizedBox(height: 6),
-                  Text(ch.description!,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          color: AppTheme.onSurfaceVariant,
-                          fontSize: 13,
-                          fontFamily: 'Inter')),
-                ],
-                const SizedBox(height: 14),
-                Row(children: [
-                  const Icon(Icons.calendar_today_outlined, size: 14, color: AppTheme.onSurfaceVariant),
-                  const SizedBox(width: 4),
-                  Text('${ch.startDate} – ${ch.endDate}',
-                      style: const TextStyle(
-                          color: AppTheme.onSurfaceVariant, fontSize: 12, fontFamily: 'Inter')),
-                  const Spacer(),
-                  const Icon(Icons.group_outlined, size: 14, color: AppTheme.onSurfaceVariant),
-                  const SizedBox(width: 4),
-                  Text(
-                    ch.maxParticipants != null
-                        ? '${ch.participantCount}/${ch.maxParticipants}'
-                        : '${ch.participantCount}',
-                    style: const TextStyle(
-                        color: AppTheme.onSurfaceVariant, fontSize: 12, fontFamily: 'Inter'),
-                  ),
-                ]),
-                if (!ch.isJoined) ...[
-                  const SizedBox(height: 14),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _joining || ch.isFull
-                          ? null
-                          : () async {
-                              setState(() => _joining = true);
-                              final ok = await context.read<SocialNotifier>().joinChallenge(ch.id);
-                              if (!context.mounted) return;
-                              setState(() => _joining = false);
-                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                content: Text(ok ? '¡Te uniste al reto!' : 'No se pudo unirse al reto.'),
-                                backgroundColor: ok ? const Color(0xFF003B2D) : AppTheme.errorColor,
-                                behavior: SnackBarBehavior.floating,
-                              ));
-                            },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: color,
-                        foregroundColor: Colors.black87,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      child: _joining
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black54))
-                          : Text(
-                              ch.isFull ? 'Reto lleno' : 'Unirme al reto',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Inter')),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Shared Widgets ───────────────────────────────────────────────────────────
-
-class _EmptyState extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onRetry;
-
-  const _EmptyState({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onRetry,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 40),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppTheme.primaryColor.withValues(alpha: 0.08),
-              ),
-              child: Icon(icon, size: 48, color: AppTheme.primaryColor),
-            ),
-            const SizedBox(height: 20),
-            Text(title,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.onSurface,
-                    fontFamily: 'Inter')),
-            const SizedBox(height: 8),
-            Text(subtitle,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppTheme.onSurfaceVariant,
-                    fontFamily: 'Inter',
-                    height: 1.5)),
-            const SizedBox(height: 24),
-            OutlinedButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('Reintentar', style: TextStyle(fontFamily: 'Inter')),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppTheme.primaryColor,
-                side: const BorderSide(color: AppTheme.primaryColor),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-            ),
-          ],
-        ),
-      ),
+      isJoining: _joining,
+      onJoin: () async {
+        setState(() => _joining = true);
+        final ok = await context.read<SocialNotifier>().joinChallenge(ch.id);
+        if (!context.mounted) return;
+        setState(() => _joining = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(ok ? '¡Te uniste al reto!' : 'No se pudo unirse al reto.'),
+          backgroundColor: ok ? const Color(0xFF003B2D) : AppTheme.errorColor,
+          behavior: SnackBarBehavior.floating,
+        ));
+      },
     );
   }
 }
