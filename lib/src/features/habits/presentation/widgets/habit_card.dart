@@ -7,6 +7,7 @@
 /// - Editar/eliminar (acciones adicionales)
 
 import 'package:flutter/material.dart';
+import 'package:habitu_ui/habitu_ui.dart';
 // import 'package:provider/provider.dart';
 // import '../notifiers/habits_notifier.dart';
 import '../../domain/entities/habit.dart';
@@ -50,11 +51,10 @@ class _HabitCardState extends State<HabitCard> {
       onTapDown: (details) => _tapDownPosition = details.globalPosition,
       onTap: widget.onTap,
       onLongPress: () => _showContextMenu(context),
-      child: Card(
+      child: HabituCard(
         margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
+        padding: const EdgeInsets.all(16),
+        child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // ======================== HEADER ========================
@@ -151,7 +151,6 @@ class _HabitCardState extends State<HabitCard> {
               ),
             ],
           ),
-        ),
       ),
     );
   }
