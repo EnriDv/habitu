@@ -1,7 +1,10 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../onboarding/presentation/notifiers/onboarding_notifier.dart';
+import 'package:habitu_ui/habitu_ui.dart';
+import '../../../onboarding/presentation/notifiers/session_onboarding_notifier.dart';
+import 'package:get_it/get_it.dart';
+import '../../../habits/data/services/sync_manager.dart';
 
 class ComunidadScreen extends StatefulWidget {
   const ComunidadScreen({super.key});
@@ -18,8 +21,8 @@ class _ComunidadScreenState extends State<ComunidadScreen> {
       _isConnecting = true;
     });
 
-    // Simular intento de conexión por 2 segundos
-    await Future.delayed(const Duration(seconds: 2));
+    // Simular intento de conexiÃ³n por 2 segundos
+    try { await GetIt.instance<SyncManager>().sync(mode: SyncMode.full); } catch(e) {}
 
     if (mounted) {
       setState(() {
@@ -27,7 +30,7 @@ class _ComunidadScreenState extends State<ComunidadScreen> {
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Error de conexión: El servidor no responde. Inténtalo más tarde.'),
+          content: Text('Error de conexiÃ³n: El servidor no responde. IntÃ©ntalo mÃ¡s tarde.'),
           backgroundColor: AppTheme.errorColor,
         ),
       );
@@ -47,7 +50,7 @@ class _ComunidadScreenState extends State<ComunidadScreen> {
           child: CircleAvatar(
             backgroundColor: AppTheme.primaryColor.withOpacity(0.2),
             child: Text(
-              user?.fullName.split(" ").map((s) => s[0]).join("").substring(0, 2) ?? 'U',
+              (() { final name = user?.fullName ?? ''; if (name.isEmpty) return 'U'; final initials = name.trim().split(" ").where((s) => s.isNotEmpty).map((s) => s[0]).join('').toUpperCase(); return initials.length > 2 ? initials.substring(0, 2) : initials; })(),
               style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryColor),
             ),
           ),
@@ -75,7 +78,7 @@ class _ComunidadScreenState extends State<ComunidadScreen> {
               ),
               const SizedBox(height: 24),
               Text(
-                'Sin Conexión a la Comunidad',
+                'Sin ConexiÃ³n a la Comunidad',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.bold,
@@ -84,7 +87,7 @@ class _ComunidadScreenState extends State<ComunidadScreen> {
               ),
               const SizedBox(height: 12),
               Text(
-                'Para interactuar con tus compañeros, unirte a retos y ver la tabla de consistencia grupal, necesitas estar conectado al servidor.',
+                'Para seguir a tus amigos, unirte a retos y compartir progreso, necesitas estar conectado al servidor.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: AppTheme.onSurfaceVariant,
@@ -93,26 +96,22 @@ class _ComunidadScreenState extends State<ComunidadScreen> {
                 ),
               ),
               const SizedBox(height: 32),
-              ElevatedButton.icon(
-                onPressed: _isConnecting ? null : _retryConnection,
-                icon: _isConnecting
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
+              _isConnecting
+                  ? const SizedBox(
+                      width: 200,
+                      height: 56,
+                      child: Center(
                         child: CircularProgressIndicator(
                           strokeWidth: 2.5,
-                          color: AppTheme.onPrimary,
+                          color: AppTheme.primaryColor,
                         ),
-                      )
-                    : const Icon(Icons.refresh),
-                label: Text(
-                  _isConnecting ? 'Conectando...' : 'Reintentar Conexión',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Inter'),
-                ),
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(200, 56),
-                ),
-              ),
+                      ),
+                    )
+                  : HabituButton(
+                      label: 'Reintentar ConexiÃ³n',
+                      onPressed: _retryConnection,
+                      icon: Icons.refresh,
+                    ),
             ],
           ),
         ),
@@ -120,3 +119,5 @@ class _ComunidadScreenState extends State<ComunidadScreen> {
     );
   }
 }
+
+
