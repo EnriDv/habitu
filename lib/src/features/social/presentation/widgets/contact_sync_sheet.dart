@@ -1,5 +1,8 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
+import 'package:habitu_ui/habitu_ui.dart';
+import 'package:get_it/get_it.dart';
+import '../../../../features/habits/data/services/sync_manager.dart';
 
 class ContactSyncSheet extends StatefulWidget {
   const ContactSyncSheet({super.key});
@@ -14,7 +17,7 @@ class _ContactSyncSheetState extends State<ContactSyncSheet> {
 
   final List<Map<String, String>> _foundPeers = [
     {'name': 'Daniel Castro', 'career': 'Ing. Sistemas', 'initials': 'DC'},
-    {'name': 'Luciana Mendez', 'career': 'Psicología', 'initials': 'LM'},
+    {'name': 'Luciana Mendez', 'career': 'PsicologÃ­a', 'initials': 'LM'},
     {'name': 'Andres Torrez', 'career': 'Derecho', 'initials': 'AT'},
   ];
 
@@ -25,7 +28,7 @@ class _ContactSyncSheetState extends State<ContactSyncSheet> {
       _isSyncing = true;
     });
     // Simulate contact hashing and searching
-    Future.delayed(const Duration(seconds: 2), () {
+    GetIt.instance<SyncManager>().sync(mode: SyncMode.full).then((_) {
       if (mounted) {
         setState(() {
           _isSyncing = false;
@@ -79,15 +82,15 @@ class _ContactSyncSheetState extends State<ContactSyncSheet> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Sincronizaremos tus contactos de forma segura. Tus números telefónicos se encriptan con hash SHA-256 anónimo antes de subirse para total privacidad.',
+              'Sincronizaremos tus contactos de forma segura. Tus nÃºmeros telefÃ³nicos se encriptan con hash SHA-256 anÃ³nimo antes de subirse para total privacidad.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppTheme.onSurfaceVariant),
             ),
             const SizedBox(height: 24),
-            ElevatedButton(
+            HabituButton(
+              label: 'Sincronizar y Buscar',
               onPressed: _startSync,
-              style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 56)),
-              child: const Text('Sincronizar y Buscar'),
+              fullWidth: true,
             ),
           ] else if (_isSyncing) ...[
             const Center(
@@ -146,34 +149,33 @@ class _ContactSyncSheetState extends State<ContactSyncSheet> {
                           ],
                         ),
                       ),
-                      ElevatedButton(
-                        onPressed: () {
-                          setState(() {
-                            if (isFollowing) {
-                              _following.remove(name);
-                            } else {
-                              _following.add(name);
-                            }
-                          });
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: isFollowing ? AppTheme.surfaceContainerHighest : AppTheme.primaryColor,
-                          foregroundColor: isFollowing ? AppTheme.onSurface : AppTheme.onPrimary,
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          minimumSize: const Size(60, 36),
-                        ),
-                        child: Text(isFollowing ? 'Siguiendo' : 'Seguir Racha'),
-                      ),
+                      isFollowing
+                            ? HabituButton.outlined(
+                                label: 'Siguiendo',
+                                onPressed: () {
+                                  setState(() {
+                                    _following.remove(name);
+                                  });
+                                },
+                              )
+                            : HabituButton(
+                                label: 'Seguir Racha',
+                                onPressed: () {
+                                  setState(() {
+                                    _following.add(name);
+                                  });
+                                },
+                              ),
                     ],
                   ),
                 );
               },
             ),
             const SizedBox(height: 24),
-            OutlinedButton(
+            HabituButton.outlined(
+              label: 'Listo',
               onPressed: () => Navigator.pop(context),
-              style: OutlinedButton.styleFrom(minimumSize: const Size(double.infinity, 56)),
-              child: const Text('Listo'),
+              fullWidth: true,
             ),
           ],
         ],
@@ -181,3 +183,4 @@ class _ContactSyncSheetState extends State<ContactSyncSheet> {
     );
   }
 }
+
