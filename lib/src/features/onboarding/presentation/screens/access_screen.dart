@@ -35,11 +35,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   children: [
                     const _AccessHeader(),
                     const SizedBox(height: 28),
-                    _AccessModeSwitch(
-                      mode: _mode,
-                      onChanged: (mode) {
+                    AccessModeSwitch(
+                      selectedIndex: _mode == _AccessMode.signIn ? 0 : 1,
+                      labels: const ['Iniciar sesion', 'Crear cuenta'],
+                      onChanged: (index) {
                         setState(() {
-                          _mode = mode;
+                          _mode = index == 0 ? _AccessMode.signIn : _AccessMode.register;
                         });
                       },
                     ),
@@ -198,80 +199,6 @@ class _AccessHeader extends StatelessWidget {
   }
 }
 
-class _AccessModeSwitch extends StatelessWidget {
-  final _AccessMode mode;
-  final ValueChanged<_AccessMode> onChanged;
-
-  const _AccessModeSwitch({
-    required this.mode,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _ModeButton(
-              label: 'Iniciar sesion',
-              selected: mode == _AccessMode.signIn,
-              onTap: () => onChanged(_AccessMode.signIn),
-            ),
-          ),
-          Expanded(
-            child: _ModeButton(
-              label: 'Crear cuenta',
-              selected: mode == _AccessMode.register,
-              onTap: () => onChanged(_AccessMode.register),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ModeButton extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _ModeButton({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: selected ? AppTheme.primaryColor.withOpacity(0.16) : Colors.transparent,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Text(
-          label,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: selected ? AppTheme.primaryColor : AppTheme.onSurfaceVariant,
-            fontWeight: FontWeight.bold,
-            fontFamily: 'Inter',
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _AccessForm extends StatelessWidget {
   final _AccessMode mode;
