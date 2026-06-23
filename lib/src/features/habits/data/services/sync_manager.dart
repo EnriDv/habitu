@@ -1,44 +1,45 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:io';
 import 'package:drift/drift.dart';
-import 'package:uuid/uuid.dart';
 import 'package:http/http.dart' as http;
 import '../../../../core/database/app_database.dart';
 import '../../../../core/network/connectivity_service.dart';
 import '../../../../core/network/custom_http_client.dart';
 import '../../../../core/constants/api_constants.dart';
+import '../../../../core/services/device_installation_service.dart';
+import 'package:path_provider/path_provider.dart';
+
+enum SyncMode {
+  pullOnly,
+  full,
+}
 
 class SyncManager {
   final AppDatabase _db;
   final CustomHttpClient _client;
   final ConnectivityService _connectivityService;
-  final _uuid = const Uuid();
+  final DeviceInstallationService _deviceInstallationService;
   bool _isSyncing = false;
 
   SyncManager({
     required AppDatabase db,
     required CustomHttpClient client,
     required ConnectivityService connectivityService,
+    required DeviceInstallationService deviceInstallationService,
   })  : _db = db,
         _client = client,
-        _connectivityService = connectivityService {
-    // Listen to connectivity shifts to automatically retry when back online
-    _connectivityService.statusStream.listen((status) {
-      if (status == ConnectionStateStatus.online) {
-        sync();
-      }
-    });
-  }
+        _connectivityService = connectivityService,
+        _deviceInstallationService = deviceInstallationService;
 
   bool get isSyncing => _isSyncing;
 
-  Future<void> sync() async {
-    if (_isSyncing) return;
+  Future<bool> sync({SyncMode mode = SyncMode.full}) async {
+    if (_isSyncing) return false;
     
     final connection = await _connectivityService.checkConnection();
     if (connection != ConnectionStateStatus.online) {
       print("Sync skipped: No connection to backend.");
-      return;
+      return false;
     }
 
     _isSyncing = true;
@@ -49,29 +50,35 @@ class SyncManager {
       
       if (activeUser == null) {
         print("Sync skipped: No active user found.");
-        return;
+        return false;
       }
 
       final token = await _getOrRefreshToken(activeUser);
       if (token == null) {
         print("Sync skipped: Could not authenticate user.");
-        return;
+        return false;
       }
 
       final lastSyncedAt = activeUser.lastSyncedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
 
-      // Fetch unsynced local changes
-      final pendingChanges = await (_db.select(_db.syncQueueTable)
-            ..where((t) => t.isDirty.equals(true)))
-          .get();
+      final pendingChanges = mode == SyncMode.full
+          ? await (_db.select(_db.syncQueueTable)
+                ..where((t) => t.isDirty.equals(true)))
+              .get()
+          : <SyncQueueTableData>[];
 
       final habitsToSend = <Map<String, dynamic>>[];
       final logsToSend = <Map<String, dynamic>>[];
       final friendshipsToSend = <Map<String, dynamic>>[];
 
+      final activeUserId = activeUser.id;
       for (final change in pendingChanges) {
         try {
           final payload = jsonDecode(change.payload) as Map<String, dynamic>;
+          final payloadUserId = payload['userId'];
+          if (payloadUserId != null && payloadUserId != activeUserId) {
+            continue;
+          }
           
           if (change.entityType == 'habit') {
             habitsToSend.add({
@@ -110,8 +117,8 @@ class SyncManager {
         }
       }
 
-      final deviceId = activeUser.id;
-      final deviceName = Platform.operatingSystem;
+      final deviceId = await _deviceInstallationService.getOrCreateDeviceId();
+      final deviceName = '${Platform.operatingSystem} ${Platform.operatingSystemVersion}';
       const appVersion = "1.0.0";
 
       final syncRequest = {
@@ -133,6 +140,7 @@ class SyncManager {
       if (response.statusCode == 200) {
         final responseData = jsonDecode(response.body) as Map<String, dynamic>;
         final newSyncTimestamp = DateTime.parse(responseData['newSyncTimestamp']);
+        await _persistConflicts(responseData['conflicts'] as List<dynamic>? ?? const []);
         
         final serverHabits = responseData['habits'] as List<dynamic>;
         final serverLogs = responseData['habitLogs'] as List<dynamic>;
@@ -184,16 +192,18 @@ class SyncManager {
         }
 
         // Mark local queue items as clean/synced
-        for (final change in pendingChanges) {
-          await (_db.update(_db.syncQueueTable)
-                ..where((t) => t.id.equals(change.id)))
-              .write(
-            SyncQueueTableCompanion(
-              isDirty: const Value(false),
-              status: const Value('synced'),
-              syncedAt: Value(DateTime.now()),
-            ),
-          );
+        if (mode == SyncMode.full) {
+          for (final change in pendingChanges) {
+            await (_db.update(_db.syncQueueTable)
+                  ..where((t) => t.id.equals(change.id)))
+                .write(
+              SyncQueueTableCompanion(
+                isDirty: const Value(false),
+                status: const Value('synced'),
+                syncedAt: Value(DateTime.now()),
+              ),
+            );
+          }
         }
 
         // Update active user's lastSyncedAt
@@ -206,14 +216,45 @@ class SyncManager {
         );
 
         print("Sync completed successfully at $newSyncTimestamp.");
+        return true;
       } else {
+        await _persistConflicts(const []);
         print("Sync failed with status: ${response.statusCode}");
+        return false;
       }
     } catch (e) {
       print("Sync encountered an error: $e");
+      return false;
     } finally {
       _isSyncing = false;
     }
+  }
+
+  Future<int> getPendingConflictCount() async {
+    final conflicts = await getPendingConflicts();
+    return conflicts.length;
+  }
+
+  Future<List<Map<String, dynamic>>> getPendingConflicts() async {
+    final file = await _getConflictsFile();
+    if (!await file.exists()) {
+      return const [];
+    }
+
+    try {
+      final content = await file.readAsString();
+      final decoded = jsonDecode(content) as List<dynamic>;
+      return decoded
+          .whereType<Map<String, dynamic>>()
+          .map((item) => Map<String, dynamic>.from(item))
+          .toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  Future<void> clearPendingConflicts() async {
+    await _persistConflicts(const []);
   }
 
   Future<String?> _getOrRefreshToken(UsersTableData user) async {
@@ -254,77 +295,20 @@ class SyncManager {
           }
         }
       }
-
-      final password = "${user.email}_Habitu2026!";
-      final response = await http.post(
-        Uri.parse('${ApiConstants.baseUrl}${ApiConstants.loginEndpoint}'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'email': user.email,
-          'password': password,
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final accessToken = data['accessToken'] as String;
-        final refreshToken = data['refreshToken'] as String?;
-
-        await (_db.update(_db.userSessionsTable)
-              ..where((t) => t.userId.equals(user.id)))
-            .write(const UserSessionsTableCompanion(isActive: Value(false)));
-
-        await _db.into(_db.userSessionsTable).insert(
-          UserSessionsTableCompanion.insert(
-            id: _uuid.v4(),
-            userId: user.id,
-            accessToken: accessToken,
-            refreshToken: Value(refreshToken),
-            expiresAt: DateTime.now().add(const Duration(days: 7)),
-            isActive: const Value(true),
-          ),
-        );
-        return accessToken;
-      }
-
-      // Automatically register user if not found/created on backend yet
-      final regResponse = await http.post(
-        Uri.parse('${ApiConstants.baseUrl}${ApiConstants.registerEndpoint}'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'email': user.email,
-          'password': password,
-          'fullName': user.fullName,
-          'universityHeadquarters': 'Sede Central',
-          'academicProgram': 'Estudiante',
-          'bio': '',
-        }),
-      );
-
-      if (regResponse.statusCode == 200 || regResponse.statusCode == 201) {
-        final data = jsonDecode(regResponse.body) as Map<String, dynamic>;
-        final accessToken = data['accessToken'] as String;
-        final refreshToken = data['refreshToken'] as String?;
-
-        await (_db.update(_db.userSessionsTable)
-              ..where((t) => t.userId.equals(user.id)))
-            .write(const UserSessionsTableCompanion(isActive: Value(false)));
-
-        await _db.into(_db.userSessionsTable).insert(
-          UserSessionsTableCompanion.insert(
-            id: _uuid.v4(),
-            userId: user.id,
-            accessToken: accessToken,
-            refreshToken: Value(refreshToken),
-            expiresAt: DateTime.now().add(const Duration(days: 7)),
-            isActive: const Value(true),
-          ),
-        );
-        return accessToken;
-      }
     } catch (e) {
-      print("Authentication auto-login failed: $e");
+      print("Authentication refresh failed: $e");
     }
     return null;
   }
+
+  Future<File> _getConflictsFile() async {
+    final directory = await getApplicationDocumentsDirectory();
+    return File('${directory.path}/sync_conflicts.json');
+  }
+
+  Future<void> _persistConflicts(List<dynamic> conflicts) async {
+    final file = await _getConflictsFile();
+    await file.writeAsString(jsonEncode(conflicts));
+  }
 }
+

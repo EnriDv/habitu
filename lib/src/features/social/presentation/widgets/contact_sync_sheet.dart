@@ -28,7 +28,7 @@ class _ContactSyncSheetState extends State<ContactSyncSheet> {
       _isSyncing = true;
     });
     // Simulate contact hashing and searching
-    GetIt.instance<SyncManager>().sync().then((_) {
+    GetIt.instance<SyncManager>().sync(mode: SyncMode.full).then((_) {
       if (mounted) {
         setState(() {
           _isSyncing = false;

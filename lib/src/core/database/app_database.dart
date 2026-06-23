@@ -179,6 +179,31 @@ class RankingsTable extends Table {
   ];
 }
 
+class RoutinesTable extends Table {
+  TextColumn get id => text()();
+  TextColumn get userId => text()();
+  TextColumn get title => text()();
+  TextColumn get description => text().nullable()();
+  TextColumn get timeOfDay => text().withDefault(const Constant('morning'))();
+  TextColumn get anchorTime => text().nullable()();
+  TextColumn get daysOfWeek => text().withDefault(const Constant('[]'))();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+class RoutineHabitsTable extends Table {
+  TextColumn get routineId => text()();
+  TextColumn get habitId => text()();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+
+  @override
+  Set<Column> get primaryKey => {routineId, habitId};
+}
+
 // ==================== BASE DE DATOS DRIFT ====================
 
 @DriftDatabase(tables: [
@@ -190,18 +215,24 @@ class RankingsTable extends Table {
   UserSessionsTable,
   NotificationsTable,
   RankingsTable,
+  RoutinesTable,
+  RoutineHabitsTable,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onUpgrade: (migrator, from, to) async {
           if (from < 2) {
             await migrator.addColumn(usersTable, usersTable.lastSyncedAt);
+          }
+          if (from < 3) {
+            await migrator.createTable(routinesTable);
+            await migrator.createTable(routineHabitsTable);
           }
         },
       );

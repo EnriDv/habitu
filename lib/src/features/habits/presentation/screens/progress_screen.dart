@@ -1,396 +1,528 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../../core/theme/app_theme.dart';
-import '../../domain/entities/habit.dart';
-import '../notifiers/habits_notifier.dart';
 
-class ProgressScreen extends StatelessWidget {
+import '../../../../core/theme/app_theme.dart';
+import '../../domain/entities/analytics_summary.dart';
+import '../../domain/entities/habit_template_models.dart';
+import '../notifiers/progress_hub_notifier.dart';
+import 'recommendations_screen.dart';
+
+class ProgressScreen extends StatefulWidget {
   const ProgressScreen({super.key});
 
-  // Helper to check completions count for a specific date across all habits
-  int _getCompletionsForDate(HabitsNotifier notifier, DateTime date) {
-    int count = 0;
-    for (final habit in notifier.activeHabits) {
-      if (notifier.getCompletionLogForHabit(habit.id, date) != null) {
-        count++;
-      }
-    }
-    return count;
+  @override
+  State<ProgressScreen> createState() => _ProgressScreenState();
+}
+
+class _ProgressScreenState extends State<ProgressScreen> {
+  bool _initialized = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_initialized) return;
+    _initialized = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<ProgressHubNotifier>().initialize();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final habitsNotifier = context.watch<HabitsNotifier>();
-    final activeHabits = habitsNotifier.activeHabits;
+    final notifier = context.watch<ProgressHubNotifier>();
 
-    // 1. Calculate Maximum Active Streak across all habits
-    int maxActiveStreak = 0;
-    for (final h in activeHabits) {
-      final streak = habitsNotifier.getHabitCurrentStreak(h.id);
-      if (streak > maxActiveStreak) {
-        maxActiveStreak = streak;
-      }
-    }
-
-    // 2. Calculate Weekly Success Rate
-    // completions in the last 7 days vs potential completions (total habits * 7)
-    double weeklySuccessRate = 0.0;
-    int totalCompletionsLastWeek = 0;
-    final now = DateTime.now();
-    for (int i = 0; i < 7; i++) {
-      final date = DateTime(now.year, now.month, now.day).subtract(Duration(days: i));
-      totalCompletionsLastWeek += _getCompletionsForDate(habitsNotifier, date);
-    }
-    final int maxPotential = activeHabits.length * 7;
-    if (maxPotential > 0) {
-      weeklySuccessRate = totalCompletionsLastWeek / maxPotential;
-    }
-
-    // 3. Find Strongest Habit (the one with the most completions in memory)
-    Habit? strongestHabit;
-    int maxCompletions = 0;
-    // We can infer completions counts from habitsNotifier logs if available
-    // For now we count logs in notifier.
-    for (final h in activeHabits) {
-      // Since notifier has logs of selected habit, we can fallback or query
-      // but let's count from the local logs in habitsNotifier if available,
-      // or compute it based on streaks. Let's find the one with longest streak!
-      final streak = habitsNotifier.getHabitLongestStreak(h.id);
-      if (streak > maxCompletions) {
-        maxCompletions = streak;
-        strongestHabit = h;
-      }
-    }
-
-    // 4. Most Productive Day (Mock/Calculated)
-    // In production, we'd group logs by weekday. For now we use Wednesday as classic brief.
-    const String productiveDay = 'Miércoles';
-
-    // 5. Heatmap Dates (5 rows x 24 columns = 120 cells representing last 120 days)
-    final List<DateTime> heatmapDates = [];
-    final today = DateTime(now.year, now.month, now.day);
-    // Grid: 24 columns, 5 rows. We generate dates backwards.
-    for (int col = 23; col >= 0; col--) {
-      for (int row = 4; row >= 0; row--) {
-        final daysAgo = col * 5 + row;
-        heatmapDates.add(today.subtract(Duration(days: daysAgo)));
-      }
-    }
-    // Sort chronological for left-to-right rendering
-    heatmapDates.sort((a, b) => a.compareTo(b));
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Progreso Analítico', style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Inter')),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-        children: [
-          // Header description
-          Text(
-            'Tu evolución académica en datos',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: AppTheme.onSurfaceVariant,
-            ),
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text(
+            'Progreso',
+            style: TextStyle(fontWeight: FontWeight.bold),
           ),
-          const SizedBox(height: 24),
-
-          // Bento Grid items
-          // Focal Streak Card
-          Container(
-            padding: const EdgeInsets.all(24),
-            height: 220,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  AppTheme.primaryContainer.withOpacity(0.9),
-                  AppTheme.surfaceColor.withOpacity(0.95),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: AppTheme.primaryColor.withOpacity(0.15)),
-              boxShadow: [
-                BoxShadow(
-                  color: AppTheme.primaryColor.withOpacity(0.06),
-                  blurRadius: 32,
-                  spreadRadius: 2,
-                )
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      '🔥 RACHA MÁXIMA ACTIVA',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.primaryColor,
-                        letterSpacing: 1.5,
-                        fontFamily: 'Inter',
+          bottom: const TabBar(
+            tabs: [
+              Tab(text: 'Métricas'),
+              Tab(text: 'Sugerencias'),
+            ],
+          ),
+        ),
+        body: notifier.isLoading && notifier.analytics == null
+            ? const Center(
+                child: CircularProgressIndicator(color: AppTheme.primaryColor),
+              )
+            : Column(
+                children: [
+                  if (notifier.errorMessage != null)
+                    Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.accentColor.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: AppTheme.accentColor.withOpacity(0.2),
+                        ),
+                      ),
+                      child: Text(
+                        notifier.errorMessage!,
+                        style: const TextStyle(
+                          color: AppTheme.onSurfaceVariant,
+                          fontSize: 12,
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.baseline,
-                      textBaseline: TextBaseline.alphabetic,
+                  Expanded(
+                    child: TabBarView(
                       children: [
-                        Text(
-                          '$maxActiveStreak',
-                          style: const TextStyle(
-                            fontSize: 54,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'Inter',
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'Días',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
-                            fontFamily: 'Inter',
-                            color: AppTheme.onSurfaceVariant,
-                          ),
-                        ),
+                        _MetricsTab(analytics: notifier.analytics),
+                        _RecommendationsTab(recommendations: notifier.recommendations),
                       ],
                     ),
-                  ],
-                ),
-                Text(
-                  maxActiveStreak == 0 
-                      ? 'Inicia y completa hábitos hoy para comenzar tu racha.'
-                      : '¡Excelente ritmo! Sigue así para romper tu récord semestral.',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: AppTheme.onSurfaceVariant,
-                    fontFamily: 'Inter',
                   ),
-                ),
-              ],
-            ),
-          ),
+                ],
+              ),
+      ),
+    );
+  }
+}
+
+class _MetricsTab extends StatelessWidget {
+  final AnalyticsSummary? analytics;
+
+  const _MetricsTab({required this.analytics});
+
+  @override
+  Widget build(BuildContext context) {
+    if (analytics == null) {
+      return const Center(
+        child: Text('Sin métricas disponibles todavía.'),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: () => context.read<ProgressHubNotifier>().refreshAnalytics(),
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
+        children: [
+          _MetricHeroCard(analytics: analytics!),
           const SizedBox(height: 16),
-
-          // Weekly rate card
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppTheme.surfaceContainer,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: Colors.white.withOpacity(0.03)),
-            ),
-            child: Row(
-              children: [
-                // Circular success rate
-                Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    SizedBox(
-                      width: 76,
-                      height: 76,
-                      child: CircularProgressIndicator(
-                        value: weeklySuccessRate,
-                        strokeWidth: 6,
-                        backgroundColor: Colors.white.withOpacity(0.05),
-                        color: AppTheme.tertiaryColor,
-                      ),
-                    ),
-                    Text(
-                      '${(weeklySuccessRate * 100).toInt()}%',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.tertiaryColor,
-                        fontFamily: 'Inter',
-                      ),
-                    ),
-                  ],
+          Row(
+            children: [
+              Expanded(
+                child: _MetricMiniCard(
+                  label: 'Últimos 7 días',
+                  value: '${analytics!.totalCompletedLast7Days}',
+                  caption: '${(analytics!.weeklySuccessRate * 100).round()}% de cumplimiento',
                 ),
-                const SizedBox(width: 20),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Tasa de Éxito Semanal',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Inter', fontSize: 15),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Completaste $totalCompletionsLastWeek de $maxPotential metas posibles esta semana.',
-                        style: const TextStyle(fontSize: 12, color: AppTheme.onSurfaceVariant, fontFamily: 'Inter'),
-                      ),
-                    ],
-                  ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _MetricMiniCard(
+                  label: 'Últimos 30 días',
+                  value: '${analytics!.totalCompletedLast30Days}',
+                  caption: '${(analytics!.monthlySuccessRate * 100).round()}% mensual',
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          const SizedBox(height: 24),
-
-          // Consistency Heatmap Card
-          Text(
-            'Mapa de Consistencia',
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
+          const SizedBox(height: 20),
+          _SectionTitle(
+            title: 'Ritmo',
+            subtitle: 'Dónde se está moviendo mejor tu constancia.',
           ),
           const SizedBox(height: 12),
-          Container(
+          _InfoStrip(
+            icon: Icons.calendar_today_outlined,
+            title: 'Día más fuerte',
+            value: analytics!.mostProductiveWeekday,
+          ),
+          const SizedBox(height: 10),
+          _InfoStrip(
+            icon: Icons.schedule_outlined,
+            title: 'Franja más activa',
+            value: analytics!.bestCompletionWindow,
+          ),
+          const SizedBox(height: 20),
+          _SectionTitle(
+            title: 'Mapa de consistencia',
+            subtitle: 'Últimos 120 días de actividad.',
+          ),
+          const SizedBox(height: 12),
+          _HeatmapCard(points: analytics!.heatmap),
+          const SizedBox(height: 20),
+          _SectionTitle(
+            title: 'Hábitos fuertes',
+            subtitle: 'Los que más empujan tu progreso.',
+          ),
+          const SizedBox(height: 12),
+          ...analytics!.topHabits.map(_HabitStatTile.new),
+          const SizedBox(height: 20),
+          _SectionTitle(
+            title: 'Necesitan atención',
+            subtitle: 'Los que más se están enfriando.',
+          ),
+          const SizedBox(height: 12),
+          ...analytics!.needsAttentionHabits.map(_HabitStatTile.new),
+        ],
+      ),
+    );
+  }
+}
+
+class _RecommendationsTab extends StatelessWidget {
+  final List<HabitRecommendation> recommendations;
+
+  const _RecommendationsTab({required this.recommendations});
+
+  @override
+  Widget build(BuildContext context) {
+    if (recommendations.isEmpty) {
+      return ListView(
+        padding: const EdgeInsets.all(24),
+        children: const [
+          _EmptyPanel(
+            title: 'Todavía no hay sugerencias',
+            subtitle: 'Mientras tanto puedes seguir creando hábitos manualmente desde Hoy.',
+          ),
+        ],
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
+      itemCount: recommendations.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        final recommendation = recommendations[index];
+        return InkWell(
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const RecommendationsScreen(),
+              ),
+            );
+          },
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
               color: AppTheme.surfaceContainer,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: Colors.white.withOpacity(0.03)),
+              borderRadius: BorderRadius.circular(20),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Últimos 120 días', style: TextStyle(fontSize: 12, color: AppTheme.onSurfaceVariant, fontFamily: 'Inter')),
-                    Row(
-                      children: [
-                        const Text('Menos ', style: TextStyle(fontSize: 10, color: AppTheme.outline, fontFamily: 'Inter')),
-                        ...List.generate(5, (idx) {
-                          Color cellColor = AppTheme.surfaceContainerLow;
-                          if (idx == 1) cellColor = AppTheme.primaryColor.withOpacity(0.2);
-                          if (idx == 2) cellColor = AppTheme.primaryColor.withOpacity(0.5);
-                          if (idx == 3) cellColor = AppTheme.primaryColor.withOpacity(0.8);
-                          if (idx == 4) cellColor = AppTheme.primaryColor;
-                          return Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 1.5),
-                            width: 10,
-                            height: 10,
-                            decoration: BoxDecoration(
-                              color: cellColor,
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          );
-                        }),
-                        const Text(' Más', style: TextStyle(fontSize: 10, color: AppTheme.outline, fontFamily: 'Inter')),
-                      ],
+                    const Icon(Icons.auto_awesome_outlined, color: AppTheme.primaryColor),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        recommendation.title,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                
-                // Grid render
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: heatmapDates.length,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 24, // 24 columns
-                    mainAxisSpacing: 4,
-                    crossAxisSpacing: 4,
+                const SizedBox(height: 8),
+                Text(
+                  recommendation.description,
+                  style: const TextStyle(color: AppTheme.onSurfaceVariant),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  recommendation.reason,
+                  style: const TextStyle(
+                    color: AppTheme.primaryColor,
+                    fontWeight: FontWeight.w600,
                   ),
-                  itemBuilder: (context, idx) {
-                    final date = heatmapDates[idx];
-                    final comps = _getCompletionsForDate(habitsNotifier, date);
-                    
-                    Color cellColor = AppTheme.surfaceContainerLow;
-                    if (comps == 1) cellColor = AppTheme.primaryColor.withOpacity(0.2);
-                    if (comps == 2) cellColor = AppTheme.primaryColor.withOpacity(0.5);
-                    if (comps == 3) cellColor = AppTheme.primaryColor.withOpacity(0.8);
-                    if (comps >= 4) cellColor = AppTheme.primaryColor;
-
-                    return Tooltip(
-                      message: '${date.day}/${date.month}: $comps completado(s)',
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: cellColor,
-                          borderRadius: BorderRadius.circular(2.5),
-                        ),
-                      ),
-                    );
-                  },
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 24),
+        );
+      },
+    );
+  }
+}
 
-          // Stats list
-          Row(
-            children: [
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppTheme.surfaceContainer,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white.withOpacity(0.03)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(Icons.star_outline, color: AppTheme.primaryColor),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'HÁBITO FUERTE',
-                        style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppTheme.onSurfaceVariant, letterSpacing: 1.0, fontFamily: 'Inter'),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        strongestHabit?.title ?? 'Ninguno',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, fontFamily: 'Inter'),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        strongestHabit != null ? 'Racha: $maxCompletions d' : 'Sin datos',
-                        style: const TextStyle(fontSize: 11, color: AppTheme.primaryColor, fontFamily: 'Inter'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppTheme.surfaceContainer,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white.withOpacity(0.03)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(Icons.calendar_today_outlined, color: AppTheme.secondaryColor),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'DÍA PRODUCTIVO',
-                        style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppTheme.onSurfaceVariant, letterSpacing: 1.0, fontFamily: 'Inter'),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        productiveDay,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, fontFamily: 'Inter'),
-                      ),
-                      const SizedBox(height: 2),
-                      const Text(
-                        'Pico 18:00 - 20:00',
-                        style: TextStyle(fontSize: 11, color: AppTheme.secondaryColor, fontFamily: 'Inter'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+class _MetricHeroCard extends StatelessWidget {
+  final AnalyticsSummary analytics;
+
+  const _MetricHeroCard({required this.analytics});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.primaryColor.withOpacity(0.18),
+            AppTheme.surfaceContainerHighest.withOpacity(0.4),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(28),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Pulso actual',
+            style: TextStyle(
+              color: AppTheme.primaryColor,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-          const SizedBox(height: 48),
+          const SizedBox(height: 12),
+          Text(
+            '${analytics.maxActiveStreak} días',
+            style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            analytics.maxActiveStreak == 0
+                ? 'Todavía no hay racha activa. El foco es retomar hoy.'
+                : 'Tu mejor racha activa sigue viva. Mantén el ritmo.',
+            style: const TextStyle(color: AppTheme.onSurfaceVariant),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MetricMiniCard extends StatelessWidget {
+  final String label;
+  final String value;
+  final String caption;
+
+  const _MetricMiniCard({
+    required this.label,
+    required this.value,
+    required this.caption,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(color: AppTheme.onSurfaceVariant)),
+          const SizedBox(height: 10),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+          ),
+          const SizedBox(height: 6),
+          Text(caption, style: const TextStyle(fontSize: 12, color: AppTheme.onSurfaceVariant)),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  final String title;
+  final String subtitle;
+
+  const _SectionTitle({
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          subtitle,
+          style: const TextStyle(color: AppTheme.onSurfaceVariant),
+        ),
+      ],
+    );
+  }
+}
+
+class _InfoStrip extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String value;
+
+  const _InfoStrip({
+    required this.icon,
+    required this.title,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: AppTheme.primaryColor),
+          const SizedBox(width: 12),
+          Expanded(child: Text(title)),
+          Text(
+            value,
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeatmapCard extends StatelessWidget {
+  final List<AnalyticsHeatmapPoint> points;
+
+  const _HeatmapCard({required this.points});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Wrap(
+        spacing: 4,
+        runSpacing: 4,
+        children: points.map((point) {
+          Color color;
+          if (point.count == 0) {
+            color = Colors.white.withOpacity(0.06);
+          } else if (point.count == 1) {
+            color = AppTheme.primaryColor.withOpacity(0.35);
+          } else if (point.count == 2) {
+            color = AppTheme.primaryColor.withOpacity(0.6);
+          } else {
+            color = AppTheme.primaryColor;
+          }
+
+          return Container(
+            width: 12,
+            height: 12,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(3),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
+class _HabitStatTile extends StatelessWidget {
+  final AnalyticsHabitStat stat;
+
+  const _HabitStatTile(this.stat);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 12,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Color(int.parse(stat.colorHex.replaceAll('#', '0xFF'))),
+              borderRadius: BorderRadius.circular(99),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(stat.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                Text(
+                  '${stat.completions} completados · racha ${stat.currentStreak}',
+                  style: const TextStyle(fontSize: 12, color: AppTheme.onSurfaceVariant),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            'Máx ${stat.longestStreak}',
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: AppTheme.primaryColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyPanel extends StatelessWidget {
+  final String title;
+  final String subtitle;
+
+  const _EmptyPanel({
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            subtitle,
+            style: const TextStyle(color: AppTheme.onSurfaceVariant),
+          ),
         ],
       ),
     );

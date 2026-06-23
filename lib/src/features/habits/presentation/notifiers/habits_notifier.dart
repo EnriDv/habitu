@@ -91,8 +91,8 @@ class HabitsNotifier extends ChangeNotifier {
       _allLogs = loadedLogs;
       _loadingState = LoadingState.success;
       notifyListeners();
-    } on Exception catch (e) {
-      _setError('Failed to load habits: ${e.toString()}');
+    } on Exception catch (_) {
+      _setError('No pudimos cargar tus hábitos en este momento.');
     }
   }
 
@@ -107,8 +107,8 @@ class HabitsNotifier extends ChangeNotifier {
       _loadingState = LoadingState.success;
       notifyListeners();
       return true;
-    } on Exception catch (e) {
-      _setError('Failed to create habit: ${e.toString()}');
+    } on Exception catch (_) {
+      _setError('No pudimos crear el hábito en este momento.');
       return false;
     }
   }
@@ -127,8 +127,8 @@ class HabitsNotifier extends ChangeNotifier {
       _loadingState = LoadingState.success;
       notifyListeners();
       return true;
-    } on Exception catch (e) {
-      _setError('Failed to update habit: ${e.toString()}');
+    } on Exception catch (_) {
+      _setError('No pudimos actualizar el hábito en este momento.');
       return false;
     }
   }
@@ -148,8 +148,8 @@ class HabitsNotifier extends ChangeNotifier {
       _loadingState = LoadingState.success;
       notifyListeners();
       return true;
-    } on Exception catch (e) {
-      _setError('Failed to delete habit: ${e.toString()}');
+    } on Exception catch (_) {
+      _setError('No pudimos eliminar el hábito en este momento.');
       return false;
     }
   }
@@ -158,18 +158,22 @@ class HabitsNotifier extends ChangeNotifier {
     required String habitId,
     required String confidenceLevel,
     String? notes,
+    String? photoPath,
     required String token,
   }) async {
+    final targetCompletedAt = _selectedDate == DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day)
+        ? DateTime.now()
+        : _selectedDate;
+
     // Optimista offline-first: agregamos un log temporal en memoria
     final tempLog = HabitLog(
       id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
       habitId: habitId,
       userId: '',
-      completedAt: _selectedDate == DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day) 
-          ? DateTime.now() 
-          : _selectedDate,
+      completedAt: targetCompletedAt,
       confidenceLevel: confidenceLevel,
       notes: notes,
+      evidencePhotoUrl: photoPath,
       createdAt: DateTime.now(),
     );
     
@@ -181,6 +185,8 @@ class HabitsNotifier extends ChangeNotifier {
         habitId: habitId,
         confidenceLevel: confidenceLevel,
         notes: notes,
+        photoPath: photoPath,
+        completedAt: targetCompletedAt,
         token: token,
       );
 
@@ -195,9 +201,9 @@ class HabitsNotifier extends ChangeNotifier {
       
       notifyListeners();
       return true;
-    } on Exception catch (e) {
+    } on Exception catch (_) {
       _allLogs.remove(tempLog);
-      _setError('Failed to complete habit: ${e.toString()}');
+      _setError('No pudimos guardar la completada en este momento.');
       return false;
     }
   }
@@ -213,8 +219,8 @@ class HabitsNotifier extends ChangeNotifier {
       _currentHabitLogs = await _repository.getHabitLogs(habitId: habitId, token: token);
       _loadingState = LoadingState.success;
       notifyListeners();
-    } on Exception catch (e) {
-      _setError('Failed to load habit logs: ${e.toString()}');
+    } on Exception catch (_) {
+      _setError('No pudimos cargar el historial de este hábito.');
     }
   }
 

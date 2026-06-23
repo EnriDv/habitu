@@ -2,7 +2,7 @@
 import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import 'package:habitu_ui/habitu_ui.dart';
-import '../../../onboarding/presentation/notifiers/onboarding_notifier.dart';
+import '../../../onboarding/presentation/notifiers/session_onboarding_notifier.dart';
 import 'package:get_it/get_it.dart';
 import '../../../habits/data/services/sync_manager.dart';
 
@@ -22,7 +22,7 @@ class _ComunidadScreenState extends State<ComunidadScreen> {
     });
 
     // Simular intento de conexiÃ³n por 2 segundos
-    try { await GetIt.instance<SyncManager>().sync(); } catch(e) {}
+    try { await GetIt.instance<SyncManager>().sync(mode: SyncMode.full); } catch(e) {}
 
     if (mounted) {
       setState(() {
@@ -87,7 +87,7 @@ class _ComunidadScreenState extends State<ComunidadScreen> {
               ),
               const SizedBox(height: 12),
               Text(
-                'Para interactuar con tus compaÃ±eros, unirte a retos y ver la tabla de consistencia grupal, necesitas estar conectado al servidor.',
+                'Para seguir a tus amigos, unirte a retos y compartir progreso, necesitas estar conectado al servidor.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: AppTheme.onSurfaceVariant,

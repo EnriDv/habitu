@@ -3,7 +3,7 @@ class ApiConstants {
 
   static const String baseUrl = String.fromEnvironment(
     'BACKEND_URL',
-    defaultValue: 'http://10.0.2.2:5000/api',
+    defaultValue: 'https://pierre-players-atom-treaty.trycloudflare.com/api',
   );
 
   // ==================== AUTH ====================
@@ -25,6 +25,20 @@ class ApiConstants {
   // ==================== SYNC ====================
   static const String syncEndpoint = '/sync';
   static const String syncQueueEndpoint = '/sync/queue';
+
+  // ==================== ANALYTICS ====================
+  static const String analyticsEndpoint = '/analytics';
+  static const String analyticsSummaryEndpoint = '/analytics/summary';
+
+  // ==================== ROUTINES ====================
+  static const String routinesEndpoint = '/routines';
+
+  // ==================== TEMPLATES ====================
+  static const String templatesEndpoint = '/templates';
+  static const String templateGoalsEndpoint = '/templates/goals';
+
+  // ==================== RECOMMENDATIONS ====================
+  static const String recommendationsEndpoint = '/recommendations';
 
   // ==================== FRIENDSHIPS ====================
   static const String friendshipsEndpoint = '/friendships';

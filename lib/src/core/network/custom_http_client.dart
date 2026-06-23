@@ -1,12 +1,14 @@
 import 'dart:convert';
+
 import 'package:http/http.dart' as http;
+
 import '../constants/api_constants.dart';
 
 class CustomHttpClient {
   final http.Client _client = http.Client();
 
   Map<String, String> _getHeaders({String? token}) {
-    final headers = {
+    final headers = <String, String>{
       'Content-Type': 'application/json; charset=UTF-8',
       'Accept': 'application/json',
       'User-Agent': 'Habitu/1.0.0 (Flutter)',
@@ -54,11 +56,7 @@ class CustomHttpClient {
     final url = Uri.parse('${ApiConstants.baseUrl}$endpoint');
 
     try {
-      _logRequest(
-        method: 'POST',
-        url: endpoint,
-        body: body,
-      );
+      _logRequest(method: 'POST', url: endpoint, body: body);
 
       final response = await _client
           .post(
@@ -91,11 +89,7 @@ class CustomHttpClient {
     final url = Uri.parse('${ApiConstants.baseUrl}$endpoint');
 
     try {
-      _logRequest(
-        method: 'PUT',
-        url: endpoint,
-        body: body,
-      );
+      _logRequest(method: 'PUT', url: endpoint, body: body);
 
       final response = await _client
           .put(
@@ -150,6 +144,8 @@ class CustomHttpClient {
     required String url,
     Map<String, dynamic>? body,
   }) {
+    // Reserved for future structured logging.
+  }
 
   void _logResponse({
     required String method,
@@ -157,7 +153,7 @@ class CustomHttpClient {
     required int statusCode,
     required String responseBody,
   }) {
-    // TODO: Implementar logging con un servicio de logging
+    // Reserved for future structured logging.
   }
 
   void _logError({
@@ -165,15 +161,10 @@ class CustomHttpClient {
     required String url,
     required String error,
   }) {
-    // TODO: Implementar logging con un servicio de logging
+    // Reserved for future structured logging.
   }
 
   void close() {
     _client.close();
   }
-}
-
-  void _logResponse({required String method, required String url, required int statusCode, required String responseBody}) {}
-  
-  void _logError({required String method, required String url, required String error}) {}
 }
