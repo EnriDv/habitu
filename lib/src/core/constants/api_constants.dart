@@ -42,17 +42,23 @@ class ApiConstants {
 
   // ==================== FRIENDSHIPS ====================
   static const String friendshipsEndpoint = '/friendships';
+  static const String friendshipsSearchEndpoint = '/friendships/search';
   static const String getFriendsEndpoint = '/friendships/list';
   static const String addFriendEndpoint = '/friendships/add';
   static const String removeFriendEndpoint = '/friendships/remove';
   static const String acceptFriendshipEndpoint = '/friendships/accept';
   static const String rejectFriendshipEndpoint = '/friendships/reject';
+  static String friendHabitsEndpoint(String friendId) => '/friendships/$friendId/habits';
+  static String nudgeFriendEndpoint(String friendId) => '/friendships/$friendId/nudge';
+  static String acceptFriendByIdEndpoint(String id) => '/friendships/$id/accept';
+  static String rejectFriendByIdEndpoint(String id) => '/friendships/$id/reject';
+  static String removeFriendByIdEndpoint(String id) => '/friendships/$id';
 
   // ==================== SOCIAL ====================
   static const String rankingsEndpoint = '/social/rankings';
   static const String leaderboardEndpoint = '/social/leaderboard';
   static const String challengesEndpoint = '/social/challenges';
-  static const String joinChallengeEndpoint = '/social/challenges/join';
+  static String joinChallengeEndpoint(String challengeId) => '/challenges/$challengeId/join';
 
   // ==================== PROFILE ====================
   static const String profileEndpoint = '/profile';

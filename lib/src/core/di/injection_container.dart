@@ -15,6 +15,8 @@ import '../../features/habits/presentation/notifiers/habits_notifier.dart';
 import '../../features/habits/presentation/notifiers/progress_hub_notifier.dart';
 import '../../features/habits/data/services/sync_manager.dart';
 import '../../features/onboarding/presentation/notifiers/session_onboarding_notifier.dart';
+import '../../features/social/data/datasources/social_remote_datasource.dart';
+import '../../features/social/presentation/notifiers/social_notifier.dart';
 
 final sl = GetIt.instance;
 
@@ -74,6 +76,17 @@ Future<void> init() async {
       repository: sl<ProgressHubRepository>(),
       habitsRepository: sl<HabitsRepository>(),
       db: sl<AppDatabase>(),
+    ),
+  );
+
+  sl.registerLazySingleton<SocialRemoteDatasource>(
+    () => SocialRemoteDatasource(sl<CustomHttpClient>()),
+  );
+
+  sl.registerLazySingleton<SocialNotifier>(
+    () => SocialNotifier(
+      datasource: sl<SocialRemoteDatasource>(),
+      tokenService: sl<SessionTokenService>(),
     ),
   );
 }

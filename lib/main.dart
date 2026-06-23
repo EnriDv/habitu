@@ -14,6 +14,7 @@ import 'src/features/onboarding/presentation/screens/initial_setup_screen.dart';
 import 'src/features/habits/presentation/screens/habits_today_screen.dart';
 import 'src/features/habits/presentation/screens/progress_screen.dart';
 import 'src/features/social/presentation/screens/comunidad_screen.dart';
+import 'src/features/social/presentation/notifiers/social_notifier.dart';
 import 'src/features/profile/presentation/screens/profile_screen.dart';
 import 'src/core/services/notification_service.dart';
 
@@ -39,6 +40,9 @@ class MyApp extends StatelessWidget {
         ),
         ChangeNotifierProvider<OnboardingNotifier>(
           create: (_) => di.sl<OnboardingNotifier>(),
+        ),
+        ChangeNotifierProvider<SocialNotifier>(
+          create: (_) => di.sl<SocialNotifier>(),
         ),
       ],
       child: MaterialApp(

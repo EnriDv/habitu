@@ -82,7 +82,7 @@ class _ContactSyncSheetState extends State<ContactSyncSheet> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Sincronizaremos tus contactos de forma segura. Tus nÃºmeros telefÃ³nicos se encriptan con hash SHA-256 anÃ³nimo antes de subirse para total privacidad.',
+              'Sincronizaremos tus contactos de forma segura. Tus numeros telefónicos se encriptan con hash SHA-256 anónimo antes de subirse para total privacidad.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppTheme.onSurfaceVariant),
             ),
