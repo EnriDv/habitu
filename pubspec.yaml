@@ -31,9 +31,6 @@ dependencies:
   flutter:
     sdk: flutter
   habitu_ui:
-#    git:
-#        url: https://github.com/EnriDv/habitu_ui.git
-    #path: https://github.com/EnriDv/habitu_ui
     path: ../habitu_ui
 
   # The following adds the Cupertino Icons font to your application.
