@@ -51,6 +51,8 @@ abstract class HabitsRepository {
     required String habitId,
     required String confidenceLevel,
     String? notes,
+    String? photoPath,
+    DateTime? completedAt,
     required String token,
   });
 

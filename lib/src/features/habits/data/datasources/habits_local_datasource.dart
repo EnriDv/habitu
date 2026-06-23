@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:habitu/src/core/database/app_database.dart';
 import '../../domain/entities/habit.dart';
@@ -212,10 +212,20 @@ class HabitsLocalDataSource {
   }
 
   Future<List<String>> getPendingSyncHabitIds() async {
+    final activeUserId = await getActiveUserId();
     final query = _db.select(_db.syncQueueTable)
       ..where((t) => t.isDirty.equals(true) & t.entityType.equals('habit'));
     final rows = await query.get();
-    return rows.map((r) => r.entityId).toList();
+    final filteredIds = <String>[];
+    for (final r in rows) {
+      try {
+        final payload = jsonDecode(r.payload) as Map<String, dynamic>;
+        if (payload['userId'] == activeUserId) {
+          filteredIds.add(r.entityId);
+        }
+      } catch (_) {}
+    }
+    return filteredIds;
   }
 
   Future<void> markSyncAsComplete({required String syncId}) async {
@@ -235,3 +245,4 @@ class HabitsLocalDataSource {
       .go();
   }
 }
+
